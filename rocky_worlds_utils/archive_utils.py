@@ -18,6 +18,12 @@ import astropy.units as u
 from astroquery.mast import MastMissions
 import numpy as np
 
+_all__ = [
+    "check_jwst_observations",
+    "check_jwst_observation_types",
+    "query_nexsci_archive",
+]
+
 
 def check_jwst_observations(ra, dec, radius=0.1):
     """Check MAST to see if target ra and dec has JWST observations.
@@ -68,7 +74,7 @@ def check_jwst_observation_type(
     target_name, period, planet_ephemeris, jwst_observations
 ):
     """
-    This fough code tries to figure out, given some target information and
+    This function tries to figure out, given some target information and
     an observation start and end time,what exoplanet event is being
     observed: transit, eclipse, phase curve, or nothing.
 
@@ -137,6 +143,14 @@ def query_nexsci_archive(target_name):
     ----------
     target_name : str
         Name of exoplanet to query database on. The string is case sensitive.
+
+    Returns
+    -------
+    all_planet_data : astropy.table.Table
+        Astropy table containing planet meta data requested from NexSci
+
+    preferred_data_index : np.array
+        Numpy array with row value of community preferred measurements
     """
     all_planet_data = NasaExoplanetArchive.query_criteria(
         table="ps",
