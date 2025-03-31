@@ -8,7 +8,7 @@ Authors
 
 Use
 ---
->>> from rocky_worlds_ddt.utils import check_jwst_observations
+>>> from rocky_worlds_utils.archive_utils import check_jwst_observations
 """
 
 from astroquery.ipac.nexsci.nasa_exoplanet_archive import NasaExoplanetArchive
@@ -20,7 +20,7 @@ import numpy as np
 
 _all__ = [
     "check_jwst_observations",
-    "check_jwst_observation_types",
+    "check_jwst_event_types",
     "query_nexsci_archive",
 ]
 
@@ -70,7 +70,7 @@ def check_jwst_observations(ra, dec, radius=0.1):
     return results
 
 
-def check_jwst_observation_type(
+def check_jwst_event_type(
     target_name, period, planet_ephemeris, jwst_observations
 ):
     """
@@ -98,6 +98,11 @@ def check_jwst_observation_type(
     jwst_observations : astropy.Table.table
         Astropy table of results from astroquery.mast.MastMissions('jwst') query.
         See `query_mast_jwst_archive` function.
+
+    Returns
+    -------
+    event_types : list
+        List of the event types as they appear in the jwst_observations table.
     """
 
     # Create time objects for API data to get them in same units as Exoplanet Archive data.
@@ -106,34 +111,44 @@ def check_jwst_observation_type(
     )
     obs_end = obs_start + (jwst_observations["duration"] * u.second).to(u.day)
 
-    for row, (start, end) in enumerate(zip(obs_start, obs_end)):
+    file_ids = jwst_observations["ArchiveFileID"]
+    event_types = []
+
+    for row, (start, end, fileid) in enumerate(zip(obs_start, obs_end, file_ids)):
         n_start = (start - planet_ephemeris) / period
         n_end = (end - planet_ephemeris) / period
         n = int(n_start)
 
         print(
-            f"This observation starts at n={n_start:0.3f} orbits after ephemeris and ends at n={n_end:0.3f} after"
+            f"MAST Observation {fileid} starts at n={n_start:0.3f} orbits after ephemeris and ends at n={n_end:0.3f} after"
         )
 
         phase_start = n_start - n
         phase_end = n_end - n
 
         print(
-            f"This observation spans from phase={phase_start:0.3f} to phase={phase_end:0.3f}"
+            f"MAST Observation {fileid} spans from phase={phase_start:0.3f} to phase={phase_end:0.3f}"
         )
         if phase_end - phase_start > 1:
-            print(f"This observation probably contains a phase curve of {target_name}")
+            print(f"MAST Observation {fileid} probably contains a phase curve of {target_name}")
+            event_type = "PHASE CURVE"
         elif phase_start < 0.5 < phase_end:
             print(
-                f"This observation probably contains a secondary eclipse of {target_name}"
+                f"MAST Observation {fileid} probably contains a secondary eclipse of {target_name}"
             )
+            event_type = "SECONDARY ECLIPSE"
         elif phase_start < 1.0 < phase_end:
-            print(f"This observation probably contains a transit of {target_name}")
+            print(f"MAST Observation {fileid} probably contains a transit of {target_name}")
+            event_type = "TRANSIT"
         else:
             print(
-                f"This observation probably does not include an event for {target_name}; or check your parameters"
+                f"MAST Observation {fileid} probably does not include an event for {target_name}; or check your parameters"
             )
-        print(jwst_observations[row])
+            event_type = "NO EVENT"
+
+        event_types.append(event_type)
+
+    return event_types
 
 
 def query_nexsci_archive(target_name):
