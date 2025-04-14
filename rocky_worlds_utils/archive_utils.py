@@ -67,6 +67,8 @@ def check_jwst_observations(ra, dec, radius=0.1):
         ],
     )
 
+    results.add_index("ArchiveFileID")
+
     return results
 
 
@@ -112,7 +114,7 @@ def check_jwst_event_type(
     obs_end = obs_start + (jwst_observations["duration"] * u.second).to(u.day)
 
     file_ids = jwst_observations["ArchiveFileID"]
-    event_types = []
+    event_types = {}
 
     for row, (start, end, fileid) in enumerate(zip(obs_start, obs_end, file_ids)):
         n_start = (start - planet_ephemeris) / period
@@ -146,7 +148,7 @@ def check_jwst_event_type(
             )
             event_type = "NO EVENT"
 
-        event_types.append(event_type)
+        event_types[fileid] = event_type
 
     return event_types
 
