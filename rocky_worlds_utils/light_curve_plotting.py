@@ -44,7 +44,7 @@ class rockyWorldsLightCurve:
         plot_width : int
             Size of bokeh plot width
         """
-        self.filename = filename
+        self.filename = Path(filename)
         self.plot_width = plot_width
         self.plot_height = plot_height
 
@@ -166,8 +166,6 @@ class rockyWorldsLightCurve:
         p.xaxis.axis_label = "Time (BJD_TDB)"
         p.yaxis.axis_label = "Normalized Flux"
 
-        output_file(filename=self.filename.replace("h5", "html"))
-
         plot_title = f"Target: {self.planet_name} Configuration: {self.telescope} | {self.instrument} | {self.filter}"
         p.title.text = plot_title
         p.title.text_font_size = "25pt"
@@ -242,14 +240,13 @@ class rockyWorldsLightCurve:
 
         return data
 
-    def run(self, save_plot=False):
+    def run(self, plot_outname):
         """Convenience method to build figure served in the Rocky Worlds Website.
 
         Parameters
         ----------
-        save_plot : bool
-            Flag to save plot, if False, plot is displayed to browser.
-            Saved figure name is `self.filename` with `h5` replaced with `html`
+        save_plot : string
+            Absolute path to save figure to
 
         Returns
         -------
@@ -268,7 +265,8 @@ class rockyWorldsLightCurve:
             stylesheets=[{".bk-tab": Styles(font_size="1.0rem")}],
         )
 
-        if save_plot:
+        if plot_outname:
+            output_file(filename=plot_outname)
             save(tabbed_plots)
         else:
             show(tabbed_plots)
