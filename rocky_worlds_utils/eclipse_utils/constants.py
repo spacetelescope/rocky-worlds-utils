@@ -1,0 +1,25 @@
+import numpy as np
+
+ECLIPSE_TABLE_DEFS = [
+    ("location", np.dtypes.StringDType),
+    ("filename", np.dtypes.StringDType),
+    ("planet_name", np.dtypes.StringDType),
+    ("star", np.dtypes.StringDType),
+    ("telescope", np.dtypes.StringDType),
+    ("instrument", np.dtypes.StringDType),
+    ("filter", np.dtypes.StringDType),
+    ("propid", np.int32),
+    ("ra", np.float64),
+    ("dec", np.float64),
+    ("mjd_beg", np.float64),
+    ("mjd_mid", np.float64),
+    ("mjd_end", np.float64),
+    ("eclipse_time", np.float64),
+    ("eclipse_time_err", np.float64),
+    ("eclipse_time_upper_err", np.float64),
+    ("eclipse_time_lower_err", np.float64),
+    ("eclipse_depth", np.float64),
+    ("eclipse_depth_err", np.float64),
+    ("eclipse_depth_upper_err", np.float64),
+    ("eclipse_depth_lower_err", np.float64),
+]

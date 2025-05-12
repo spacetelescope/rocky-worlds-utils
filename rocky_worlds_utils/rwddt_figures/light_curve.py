@@ -7,7 +7,7 @@ Authors
 
 Use
 ---
->>> from rocky_worlds_utils.lightcurve_plot import rockyWorldsLightCurve
+>>> from rocky_worlds_utils.rwddt_figures.light_curve import rockyWorldsLightCurve
 >>> filename = "hlsp_for_rockyworlds_lc.h5"
 >>> light_curve = rockyWorldsLightCurve(filename)
 """
