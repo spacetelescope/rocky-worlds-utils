@@ -1,28 +1,29 @@
-"""Module that contains the class to generate the eclipse depth output served via
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Module that contains the class to generate the eclipse depth output served via
 the Rocky Worlds website.
 
 Authors
 -------
-- Mees Fix
-
+- Mees Fix <<mfix@stsci.edu>>
 """
 
 from astropy.io import ascii
-from astropy.table import Table, unique
+from astropy.table import unique
 from bokeh.models import (
     Band,
     ColumnDataSource,
-    FixedTicker,
     Span,
     Whisker,
 )
-
 from bokeh.plotting import figure, show, output_file, save
 import numpy as np
+from pathlib import Path
 
 
 def plot_eclipse_depths(
-    eclipse_table_path, figure_output=None, plot_width=1600, plot_height=600
+    eclipse_table_path, figure_out_path=None, plot_width=1600, plot_height=600
 ):
     """Generate bokeh figure for eclipse depths. Plot is of eclipse depth
     values as a function of eclipse number. The eclipse table that these plots
@@ -34,6 +35,15 @@ def plot_eclipse_depths(
         An astropy table containing all of the metadata associated with eclipse
         depths for the RWDDT.
         See: `rocky_worlds_utils.eclipse_utils.pull_eclipse_metadata.eclipseDepthTable`
+
+    figure_out_path : str
+        Path to write out bokeh html file
+
+    plot_width : int
+        Plot width for bokeh figure
+
+    plot_height : int
+        Plot width for bokeh figure
     """
 
     eclipse_data = eclipse_data = ascii.read(
@@ -140,8 +150,14 @@ def plot_eclipse_depths(
         p.renderers.extend([hline])
 
         # Add a line glyph with minimal data to represent the Span in the legend
-        r_line = p.line([0], [0], legend_label='Mean Eclipse Depth', line_dash='dashed',
-                        line_color="red", line_width=3)
+        r_line = p.line(
+            [0],
+            [0],
+            legend_label="Mean Eclipse Depth",
+            line_dash="dashed",
+            line_color="red",
+            line_width=3,
+        )
         r_line.visible = False  # Set this fake line to invisible
 
         # band = Band(
@@ -155,4 +171,10 @@ def plot_eclipse_depths(
         # )
         # p.add_layout(band)
 
-        show(p)
+        if figure_out_path:
+            filename = f"{planet_name}_eclipse_depths.html"
+            full_file_path = Path(figure_out_path) / filename
+            output_file(full_file_path)
+            save(p)
+        else:
+            show(p)
