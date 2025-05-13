@@ -4,7 +4,7 @@ Utilities module for the Rocky Worlds DDT project.
 
 Authors
 -------
-- Mees Fix
+- Mees Fix <<mfix@stsci.edu>>
 
 Use
 ---
@@ -72,9 +72,7 @@ def check_jwst_observations(ra, dec, radius=0.1):
     return results
 
 
-def check_jwst_event_type(
-    target_name, period, planet_ephemeris, jwst_observations
-):
+def check_jwst_event_type(target_name, period, planet_ephemeris, jwst_observations):
     """
     This function tries to figure out, given some target information and
     an observation start and end time,what exoplanet event is being
@@ -132,7 +130,9 @@ def check_jwst_event_type(
             f"MAST Observation {fileid} spans from phase={phase_start:0.3f} to phase={phase_end:0.3f}"
         )
         if phase_end - phase_start > 1:
-            print(f"MAST Observation {fileid} probably contains a phase curve of {target_name}")
+            print(
+                f"MAST Observation {fileid} probably contains a phase curve of {target_name}"
+            )
             event_type = "PHASE CURVE"
         elif phase_start < 0.5 < phase_end:
             print(
@@ -140,7 +140,9 @@ def check_jwst_event_type(
             )
             event_type = "SECONDARY ECLIPSE"
         elif phase_start < 1.0 < phase_end:
-            print(f"MAST Observation {fileid} probably contains a transit of {target_name}")
+            print(
+                f"MAST Observation {fileid} probably contains a transit of {target_name}"
+            )
             event_type = "TRANSIT"
         else:
             print(
