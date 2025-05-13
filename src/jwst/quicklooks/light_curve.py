@@ -10,7 +10,8 @@ Use
 >>> from src.rwddt_figures.lightcurve_plot import rockyWorldsLightCurve
 >>> filename = "hlsp_for_rockyworlds_lc.h5"
 >>> light_curve = rockyWorldsLightCurve(filename)
->>> light_curve.run()
+>>> light_curve.run() # show in browser
+>>> light_curve.run("/path/to/save/file.html") # to save output
 """
 
 from bokeh.layouts import column
@@ -31,16 +32,18 @@ import xarray as xr
 
 
 class rockyWorldsLightCurve:
-    """Class to build light curves for Rocky Worlds DDT data products."""
-
     def __init__(self, filename, plot_height=600, plot_width=1400):
         """
+        Class to build light curve quicklooks for Rocky Worlds DDT.
+
         Parameters
         ----------
         filename : str
             Path of Rocky Worlds light curve data product file (extension `lc.h5`)
+
         plot_height : int
             Size of bokeh plot height (default)
+
         plot_width : int
             Size of bokeh plot width
         """
@@ -71,37 +74,8 @@ class rockyWorldsLightCurve:
         self.filter = self.data.FILTER
         self.propid = self.data.PROPOSID
 
-    def build_error_bars(self, time, flux, flux_err):
-        """Bokeh does not currently have an error bar plotting glyph.
-        This creates a line glyph the lays on top of the scatter points.
-
-        Parameters
-        ----------
-        time : array like
-            Light curve time values
-        flux : array like
-            Flux values associated with light curve
-        flux_err : array like
-            Error in flux measurements
-
-        Returns
-        -------
-        err_bar_time : array like
-            List of tuples (time, time)
-        err_bar_flux : array like
-            List of tuples (flux - err, flux + err)
-        """
-        err_bar_time = []
-        err_bar_flux = []
-        for t, rflx, rflx_err in zip(time, flux, flux_err):
-            err_bar_time.append((t, t))
-            err_bar_flux.append((rflx - rflx_err, rflx + rflx_err))
-        return err_bar_time, err_bar_flux
-
     def build_time_bin_slider(self, start, end, step):
-        return Slider(
-            title="# pixels to bin", value=start, start=start, end=end, step=step
-        )
+        return Slider(title="Bin Size", value=start, start=start, end=end, step=step)
 
     def build_light_curve_plot(self, time, flux, flux_err, model):
         """Build bokeh light curve figure. This takes the input and returns a single
@@ -111,17 +85,20 @@ class rockyWorldsLightCurve:
         ----------
         time : array like
             Light curve time values
+
         flux : array like
             Flux values associated with light curve
+
         flux_err : array like
             Error in flux measurements
+
         model : array like
             Model fit for light curve data.
 
         Returns
         -------
-        p : bokeh.plotting.figure
-            Bokeh figure containing light curve data
+        layout : bokeh.models.layouts.Column
+            Bokeh figure containing light curve data and bin slider
         """
         source = ColumnDataSource(
             data=dict(
@@ -240,17 +217,13 @@ class rockyWorldsLightCurve:
 
         return data
 
-    def run(self, plot_outname):
+    def run(self, plot_outname=None):
         """Convenience method to build figure served in the Rocky Worlds Website.
 
         Parameters
         ----------
-        save_plot : string
+        plot_outname : string
             Absolute path to save figure to
-
-        Returns
-        -------
-        None
         """
         self.get_raw_light_curve()
         self.get_cleaned_light_curve()
