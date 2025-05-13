@@ -12,7 +12,6 @@ Use
 >>> light_curve = rockyWorldsLightCurve(filename)
 """
 
-
 from bokeh.layouts import column
 from bokeh.models import (
     TabPanel,
@@ -195,12 +194,12 @@ class rockyWorldsLightCurve:
 
         p.line("time", "model", source=source, color="red", legend_label="Model Fit")
 
-        with open(Path(__file__).parent / "js" / "lightcurve.js", 'r') as file:
+        with open(Path(__file__).parent / "js" / "lightcurve.js", "r") as file:
             js_content = file.read()
 
         callback = CustomJS(
-            args=dict(source=source, original=original),
-            code=js_content)
+            args=dict(source=source, original=original), code=js_content
+        )
         slider = self.build_time_bin_slider(1, 20, 1)
         slider.js_on_change("value", callback)
         p.legend.click_policy = "hide"
@@ -224,7 +223,7 @@ class rockyWorldsLightCurve:
 
     def interpolate_data(self, data):
         """One dimensional interpolation routine to replace NaNs
-        
+
         Parameters
         ----------
         data : np.array
