@@ -3,13 +3,14 @@ the Rocky Worlds website.
 
 Authors
 -------
-- Mees Fix
+- Mees Fix <<mfix@stsci.edu>>
 
 Use
 ---
->>> from rocky_worlds_utils.lightcurve_plot import rockyWorldsLightCurve
+>>> from src.rwddt_figures.lightcurve_plot import rockyWorldsLightCurve
 >>> filename = "hlsp_for_rockyworlds_lc.h5"
 >>> light_curve = rockyWorldsLightCurve(filename)
+>>> light_curve.run()
 """
 
 from bokeh.layouts import column
