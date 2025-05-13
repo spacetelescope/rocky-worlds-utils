@@ -23,7 +23,7 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Code Style Check
       run: |
-        pycodestyle --ignore=E501,E505,W503 rocky-worlds-utils/*.py
+        pycodestyle --ignore=E501,E505,W503 src/*
     - name: Install Rocky Worlds Utils
       run: |
         pip install .
