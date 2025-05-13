@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from rocky_worlds_utils.archive_utils import query_nexsci_archive
+from src.jwst.archive_utils import query_nexsci_archive
 
 
 @pytest.mark.parametrize(
