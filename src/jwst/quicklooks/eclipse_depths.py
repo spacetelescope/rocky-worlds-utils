@@ -9,6 +9,8 @@ Authors
 - Mees Fix <<mfix@stsci.edu>>
 """
 
+import math
+
 from astropy.io import ascii
 from astropy.table import unique
 from bokeh.models import (
@@ -21,6 +23,8 @@ from bokeh.models import (
 from bokeh.plotting import figure, show, output_file, save
 import numpy as np
 from pathlib import Path
+
+from src.jwst.quicklooks.quicklook_template import write_figure
 
 
 def plot_eclipse_depths(
@@ -105,6 +109,7 @@ def plot_eclipse_depths(
         }
         p.xaxis.ticker = eclipse_numbers
         p.xaxis.major_label_overrides = custom_labels
+        p.xaxis.major_label_orientation = math.pi / 4
 
         p.axis.axis_label_text_font_style = "bold"
 
@@ -204,7 +209,6 @@ def plot_eclipse_depths(
         if figure_out_path:
             filename = f"{planet_name}_eclipse_depths.html"
             full_file_path = Path(figure_out_path) / filename
-            output_file(full_file_path)
-            save(p)
+            write_figure(p, full_file_path)
         else:
             show(p)
