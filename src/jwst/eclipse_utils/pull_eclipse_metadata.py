@@ -22,8 +22,8 @@ from astropy.table import Table
 import numpy as np
 import xarray as xr
 
-from constants import ECLIPSE_TABLE_DEFS
-from utils import open_eclipse_depths_table
+from src.jwst.constants import ECLIPSE_TABLE_DEFS
+from src.jwst.eclipse_utils.utils import open_eclipse_depths_table
 
 
 class eclipseDepthTable:

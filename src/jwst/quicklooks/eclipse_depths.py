@@ -14,6 +14,7 @@ from astropy.table import unique
 from bokeh.models import (
     Band,
     ColumnDataSource,
+    Legend,
     Span,
     Whisker,
 )
@@ -46,7 +47,7 @@ def plot_eclipse_depths(
         Plot width for bokeh figure
     """
 
-    eclipse_data = eclipse_data = ascii.read(
+    eclipse_data = ascii.read(
         eclipse_table_path, format="fixed_width", header_rows=["name", "dtype"]
     )
     unique_planet_names = unique(eclipse_data, keys="planet_name")["planet_name"]
@@ -56,6 +57,7 @@ def plot_eclipse_depths(
         planet_data = eclipse_data[planet_name_indices]
 
         eclipse_depths_mean = np.mean(planet_data["eclipse_depth"])
+        eclipse_depths_std = np.std(planet_data["eclipse_depth"])
 
         upper_err = (
             planet_data["eclipse_depth"] + planet_data["eclipse_depth_upper_err"]
@@ -68,10 +70,12 @@ def plot_eclipse_depths(
             eclipse_numbers = np.array([1])
             x_tick_labels = ["Eclipse 1"]
         else:
-            eclipse_numbers = np.arange(1, len(planet_data["eclipse_depth"]))
+            eclipse_numbers = np.arange(1, len(planet_data["eclipse_depth"]) + 1)
             x_tick_labels = [f"Eclipse {val}" for val in eclipse_numbers]
         source = ColumnDataSource(
             data=dict(
+                filename=planet_data["filename"],
+                propid=planet_data["propid"],
                 time=planet_data["eclipse_time"],
                 eclipse_numbers=eclipse_numbers,
                 eclipse_depths=planet_data["eclipse_depth"],
@@ -84,15 +88,18 @@ def plot_eclipse_depths(
         p = figure(
             width=plot_width,
             height=plot_height,
-            x_range=(0.5, max(eclipse_numbers) + 1),
+            x_range=(0.5, max(eclipse_numbers) + 0.5),
             y_range=(min(lower_err - 200), max(upper_err + 200)),
             tooltips=[
-                ("Time", "@time"),
-                ("Eclipse Depth", "@eclipse_depths"),
-                ("Eclipse Depth Error", "@err"),
+                ("Filename", "@filename"),
+                ("Proposal ID", "@propid"),
+                ("Time [BJD]", "@time{0.0000}"),
+                ("Eclipse Depth [ppm]", "@eclipse_depths{0.0000}"),
+                ("Eclipse Depth Error [ppm]", "@err{0.0000}"),
             ],
         )
 
+        # Define parameters of plot
         custom_labels = {
             ecl_num: label for (ecl_num, label) in zip(eclipse_numbers, x_tick_labels)
         }
@@ -116,7 +123,8 @@ def plot_eclipse_depths(
         p.title.text = plot_title
         p.title.text_font_size = "25pt"
 
-        p.scatter(
+        # Scatter eclipse depths
+        scatter = p.scatter(
             x="eclipse_numbers",
             y="eclipse_depths",
             color="black",
@@ -126,6 +134,10 @@ def plot_eclipse_depths(
             legend_label="Eclipse Depth",
         )
 
+        # Only allow hover for scatter points
+        p.hover.renderers = [scatter]
+
+        # Create Error Bars for scatter
         error = Whisker(
             base="eclipse_numbers",
             upper="upp_err",
@@ -139,6 +151,7 @@ def plot_eclipse_depths(
         error.lower_head.size = 20
         p.add_layout(error)
 
+        # Plot dashed line for mean value of dataset
         hline = Span(
             location=eclipse_depths_mean,
             dimension="width",
@@ -147,29 +160,46 @@ def plot_eclipse_depths(
             line_dash="dashed",
         )
 
-        p.renderers.extend([hline])
-
         # Add a line glyph with minimal data to represent the Span in the legend
         r_line = p.line(
             [0],
             [0],
-            legend_label="Mean Eclipse Depth",
+            legend_label=f"Mean Eclipse Depth = {eclipse_depths_mean:.2f} ppm",
             line_dash="dashed",
             line_color="red",
             line_width=3,
         )
         r_line.visible = False  # Set this fake line to invisible
 
-        # band = Band(
-        #     base=eclipse_numbers,
-        #     lower=eclipse_depths_mean - 20,
-        #     upper=eclipse_depths_mean + 20,
-        #     source=source,
-        #     fill_alpha=0.3,
-        #     fill_color="red",
-        #     line_color="red",
-        # )
-        # p.add_layout(band)
+        # Create banded areas for standard deviation
+        std_upper = Span(
+            location=eclipse_depths_mean + eclipse_depths_std,
+            dimension="width",
+            line_color="red",
+            line_width=2,
+        )
+
+        std_lower = Span(
+            location=eclipse_depths_mean - eclipse_depths_std,
+            dimension="width",
+            line_color="red",
+            line_width=2,
+        )
+
+        y1 = np.tile(eclipse_depths_mean + eclipse_depths_std, len(eclipse_numbers))
+        y2 = np.tile(eclipse_depths_mean - eclipse_depths_std, len(eclipse_numbers))
+
+        p.varea(
+            x=eclipse_numbers,
+            y1=y1,
+            y2=y2,
+            color="red",
+            alpha=0.25,
+            legend_label="Error Band",
+        )
+
+        # Extend the statistical lines in x infinitely.
+        p.renderers.extend([std_lower, std_upper, hline])
 
         if figure_out_path:
             filename = f"{planet_name}_eclipse_depths.html"
