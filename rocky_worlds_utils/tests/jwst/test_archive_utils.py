@@ -39,7 +39,7 @@ def test_check_jwst_event_type():
         ),
     }
 
-    # check_jwst_event_type expects astropy table 
+    # check_jwst_event_type expects astropy table
     jwst_obs_table = Table([jwst_obs])
 
     # When query using NASA Exoplanet DB, astropy quantity table (has units)
