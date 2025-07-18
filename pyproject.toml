@@ -6,6 +6,7 @@ authors = [
   { name = "Mees Fix" },
   { name = "Kyle Conroy" },
   { name = "Leonardo Dos Santos" },
+  { name = "Taylor James Bell" },
 ]
 keywords = ["astronomy", "python"]
 classifiers = ["Programming Language :: Python"]
@@ -18,6 +19,7 @@ dependencies = [
     "crds>=12.1.10",
     "matplotlib>=3.10.3",
     "numpy>=2.2.4",
+    "requests>=2.20.0",
     "scipy>=1.15.2",
     "stistools>=1.4.5",
 ]
