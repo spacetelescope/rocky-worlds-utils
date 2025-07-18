@@ -1,10 +1,11 @@
 [project]
-name = "rocky-worlds-utils"
+name = "rocky_worlds_utils"
 description = "Utility Tools for the Rocky Worlds DDT Project"
 readme = "README.md"
 authors = [
   { name = "Mees Fix" },
   { name = "Kyle Conroy" },
+  { name = "Leonardo Dos Santos" },
 ]
 keywords = ["astronomy", "python"]
 classifiers = ["Programming Language :: Python"]
@@ -12,8 +13,13 @@ requires-python = ">=3.11"
 dependencies = [
     "astropy>=7.0.1",
     "astroquery>=0.4.10",
+    "calcos>=3.6.1",
+    "costools>=1.2.6",
+    "crds>=12.1.10",
+    "matplotlib>=3.10.3",
     "numpy>=2.2.4",
     "scipy>=1.15.2",
+    "stistools>=1.4.5",
 ]
 
 dynamic = ["version"]

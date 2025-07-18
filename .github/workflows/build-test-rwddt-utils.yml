@@ -1,29 +1,45 @@
 name: Rocky World Utils CI
 
 on: [push, pull_request]
-
+env:
+  CRDS_PATH: ${{ github.workspace }}/crds_cache
+  CRDS_SERVER_URL: https://hst-crds.stsci.edu
+  oref: ${{ github.workspace }}/crds_cache/references/hst/oref/
+  lref: ${{ github.workspace }}/crds_cache/references/hst/lref/
 jobs:
   Build-and-Test:
     name: Build Python - ${{ matrix.python-version }}
-    runs-on: "ubuntu-latest"
+    runs-on: ${{ matrix.runs-on }}
     strategy:
       max-parallel: 5
       matrix:
         python-version: ['3.11','3.12']
+        runs-on: ["ubuntu-latest", "macos-latest"]
+    defaults:
+      run:
+        shell: micromamba-shell {0}
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
+    - uses: actions/checkout@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        fetch-depth: 0
+    - uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-name: rw-utills-${{ runner.os }}-py${{ matrix.python-version }}
+        environment-file: environment.yml
+        create-args: >-
+          python=${{ matrix.python-version }}
+          conda
+        init-shell: none
+        generate-run-shell: true
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pytest pycodestyle
+        pip install pytest-order
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Code Style Check
       run: |
-        pycodestyle --ignore=E501,E505,W503 src/*
+        pycodestyle --ignore=E501,E505,W503 rocky_worlds_utils/tests/*/*.py
     - name: Install Rocky Worlds Utils
       run: |
         pip install .

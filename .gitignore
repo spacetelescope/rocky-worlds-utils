@@ -72,3 +72,9 @@ target/
 
 # pyenv
 .python-version
+
+# Leonardo's items
+.idea/
+data/
+tests.ipynb
+.DS_Store
