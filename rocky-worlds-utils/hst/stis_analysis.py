@@ -10,10 +10,11 @@ Authors
 
 import stistools
 import os
+import numpy as np
 
 from astropy.io import fits
 
-__all__ = ["timetag_split", "extract"]
+__all__ = ["timetag_split", "extract", "coadd_stis_spectra"]
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
@@ -261,3 +262,53 @@ def extract(
         bk1offst=background1_offset,
         bk2offst=background2_offset,
     )
+
+
+# Co-add STIS spectra
+def coadd_stis_spectra(datasets, prefix, reference_wavelength_array,
+                       doppler_corrections=None):
+    """
+
+    Parameters
+    ----------
+    datasets
+    prefix
+    reference_wavelength_array
+    doppler_corrections
+
+    Returns
+    -------
+
+    """
+    n_datasets = len(datasets)
+    flux_array = np.zeros(shape=(n_datasets, len(reference_wavelength_array)))
+    gross_array = np.zeros(shape=(n_datasets, len(reference_wavelength_array)))
+    net_array = np.zeros(shape=(n_datasets, len(reference_wavelength_array)))
+    sensitivity_array = np.zeros(shape=(n_datasets,
+                                        len(reference_wavelength_array)))
+
+    for i, dataset in enumerate(datasets):
+        data = fits.getdata(prefix + dataset + "_x1d.fits")
+        header_0 = fits.getheader(prefix + dataset + "_x1d.fits", ext=0)
+        header_1 = fits.getheader(prefix + dataset + "_x1d.fits", ext=1)
+        exposure_time = header_0["TEXPTIME"]
+        wavelength = data["WAVELENGTH"][0]
+        flux = data["FLUX"][0]
+        gross_counts = data["GROSS"] * exposure_time
+        net = data["NET"]
+
+        # Interpolate spectrum to the reference wavelength array
+        interp_flux = np.interp(reference_wavelength_array, wavelength, flux,
+                                left=1E-18, right=1E-18)
+        interp_gross = np.interp(reference_wavelength_array, wavelength,
+                                 gross_counts, left=1E-18, right=1E-18)
+        interp_net = np.interp(reference_wavelength_array, wavelength, net,
+                               left=1E-18, right=1E-18)
+        flux_array[i, :] = interp_flux
+        gross_array[i, :] = interp_gross
+        net_array[i, :] = interp_net
+        sensitivity_array[i, :] = interp_flux / interp_net
+
+    average_net = np.mean(net_array, axis=0)
+    average_sensitivity = np.mean(sensitivity_array, axis=0)
+    gross_sum = np.sum(gross_array, axis=0)
