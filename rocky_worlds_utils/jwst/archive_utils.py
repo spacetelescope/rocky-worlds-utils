@@ -1,6 +1,8 @@
 #! /usr/bin/env python
 """
-Utilities module for the Rocky Worlds DDT project.
+JWST Archive utilities module for the Rocky Worlds DDT project. Most of the functions
+here are used to query for targets included in the RWDDT TUC that are not a part of
+our programs.
 
 Authors
 -------
@@ -18,9 +20,12 @@ import astropy.units as u
 from astroquery.mast import MastMissions
 import numpy as np
 
-_all__ = [
+
+from rocky_worlds_utils.constants import JWST_PROGRAMS
+
+__all__ = [
     "check_jwst_observations",
-    "check_jwst_event_types",
+    "check_jwst_event_type",
     "query_nexsci_archive",
 ]
 
@@ -67,12 +72,20 @@ def check_jwst_observations(ra, dec, radius=0.1):
         ],
     )
 
+    # drop rows that contain observations from RWDDT programs
+    for rwddt_program in JWST_PROGRAMS:
+        if rwddt_program in results["program"]:
+            idx = np.where(results["program"]==rwddt_program)[0]
+            results.remove_rows(idx)
+        else:
+            continue
+
     results.add_index("ArchiveFileID")
 
     return results
 
 
-def check_jwst_event_type(target_name, period, planet_ephemeris, jwst_observations):
+def check_jwst_event_type(period, planet_ephemeris, jwst_observations):
     """
     This function tries to figure out, given some target information and
     an observation start and end time,what exoplanet event is being
@@ -89,12 +102,12 @@ def check_jwst_event_type(target_name, period, planet_ephemeris, jwst_observatio
 
     Parameters
     ----------
-    target_name : str
-        Name of your target
     period : float
         Period of exoplanet
+
     planet_ephemeris : float
         The reference time for a transit mid-point.
+
     jwst_observations : astropy.Table.table
         Astropy table of results from astroquery.mast.MastMissions('jwst') query.
         See `query_mast_jwst_archive` function.
@@ -109,45 +122,27 @@ def check_jwst_event_type(target_name, period, planet_ephemeris, jwst_observatio
     obs_start = (
         Time(jwst_observations["date_obs"], format="isot", scale="utc").jd * u.day
     )
+
     obs_end = obs_start + (jwst_observations["duration"] * u.second).to(u.day)
 
     file_ids = jwst_observations["ArchiveFileID"]
     event_types = {}
 
-    for row, (start, end, fileid) in enumerate(zip(obs_start, obs_end, file_ids)):
+    for table_idx, (start, end, fileid) in enumerate(zip(obs_start, obs_end, file_ids)):
         n_start = (start - planet_ephemeris) / period
         n_end = (end - planet_ephemeris) / period
         n = int(n_start)
 
-        print(
-            f"MAST Observation {fileid} starts at n={n_start:0.3f} orbits after ephemeris and ends at n={n_end:0.3f} after"
-        )
-
         phase_start = n_start - n
         phase_end = n_end - n
 
-        print(
-            f"MAST Observation {fileid} spans from phase={phase_start:0.3f} to phase={phase_end:0.3f}"
-        )
         if phase_end - phase_start > 1:
-            print(
-                f"MAST Observation {fileid} probably contains a phase curve of {target_name}"
-            )
             event_type = "PHASE CURVE"
         elif phase_start < 0.5 < phase_end:
-            print(
-                f"MAST Observation {fileid} probably contains a secondary eclipse of {target_name}"
-            )
             event_type = "SECONDARY ECLIPSE"
         elif phase_start < 1.0 < phase_end:
-            print(
-                f"MAST Observation {fileid} probably contains a transit of {target_name}"
-            )
             event_type = "TRANSIT"
         else:
-            print(
-                f"MAST Observation {fileid} probably does not include an event for {target_name}; or check your parameters"
-            )
             event_type = "NO EVENT"
 
         event_types[fileid] = event_type

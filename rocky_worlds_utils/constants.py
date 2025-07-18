@@ -80,3 +80,5 @@ TUC_NAMES = [
     "Kepler-42 c",
     "GJ 367 b",
 ]
+
+JWST_PROGRAMS = [9235]
