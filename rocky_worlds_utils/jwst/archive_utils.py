@@ -10,7 +10,8 @@ Authors
 
 Use
 ---
->>> from rocky_worlds_utils.archive_utils import check_jwst_observations
+>>> from rocky_worlds_utils.jwst.archive_utils import query_nexsci_archive
+>>> data, pref_idx = query_nexsci_archive("TRAPPIST-1 b")
 """
 
 from astroquery.ipac.nexsci.nasa_exoplanet_archive import NasaExoplanetArchive
