@@ -75,7 +75,7 @@ def check_jwst_observations(ra, dec, radius=0.1):
     # drop rows that contain observations from RWDDT programs
     for rwddt_program in JWST_PROGRAMS:
         if rwddt_program in results["program"]:
-            idx = np.where(results["program"]==rwddt_program)[0]
+            idx = np.where(results["program"] == rwddt_program)[0]
             results.remove_rows(idx)
         else:
             continue
