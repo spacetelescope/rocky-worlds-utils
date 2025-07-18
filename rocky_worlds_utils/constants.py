@@ -1,3 +1,12 @@
+#! /usr/bin/env python
+"""
+Useful constant variables for Rocky Worlds DDT
+
+Authors
+-------
+- Mees Fix <<mfix@stsci.edu>>
+"""
+
 TUC_NAMES = [
     "TOI-406.01",
     "TOI-198 b",

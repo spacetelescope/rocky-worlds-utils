@@ -1,3 +1,12 @@
+#! /usr/bin/env python
+"""
+Tests for the Rocky Worlds DDT JWST archive utility module.
+
+Authors
+-------
+- Mees Fix <<mfix@stsci.edu>>
+"""
+
 from astropy.table import Table
 import astropy.units as u
 import numpy as np
