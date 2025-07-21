@@ -14,8 +14,12 @@ Use
 >>> data, pref_idx = query_nexsci_archive("TRAPPIST-1 b")
 """
 
+from copy import copy
+import warnings
+
 from astroquery.ipac.nexsci.nasa_exoplanet_archive import NasaExoplanetArchive
 from astropy.coordinates import SkyCoord
+from astropy.table import MaskedColumn
 from astropy.time import Time
 import astropy.units as u
 from astroquery.mast import MastMissions
@@ -119,17 +123,37 @@ def check_jwst_event_type(period, planet_ephemeris, jwst_observations):
         List of the event types as they appear in the jwst_observations table.
     """
 
+    # If table already has column, no need to add it.
+    if "event_type" in jwst_observations.columns:
+        raise ValueError("event_type column already exists in jwst_observations table!")
+    else:
+        # Don't overwrite table in memory, lets make a copy of it.
+        observations_with_events = copy(jwst_observations)
+
+        # Set max string length in astropy table column
+        max_string_length = len("SECONDARY ECLIPSE")
+
+        # Create an empty string column of the desired length
+        event_type_col = MaskedColumn(
+            name="event_type",
+            dtype="U" + str(max_string_length),  # Use 'U' for Unicode strings
+            length=len(observations_with_events),
+        )
+
+        # Add the empty string column to the table
+        observations_with_events.add_column(event_type_col)
+
     # Create time objects for API data to get them in same units as Exoplanet Archive data.
     obs_start = (
-        Time(jwst_observations["date_obs"], format="isot", scale="utc").jd * u.day
+        Time(observations_with_events["date_obs"], format="isot", scale="utc").jd
+        * u.day
     )
 
-    obs_end = obs_start + (jwst_observations["duration"] * u.second).to(u.day)
+    obs_end = obs_start + (observations_with_events["duration"] * u.second).to(u.day)
 
-    file_ids = jwst_observations["ArchiveFileID"]
-    event_types = {}
+    file_ids = observations_with_events["ArchiveFileID"]
 
-    for table_idx, (start, end, fileid) in enumerate(zip(obs_start, obs_end, file_ids)):
+    for _, (start, end, fileid) in enumerate(zip(obs_start, obs_end, file_ids)):
         n_start = (start - planet_ephemeris) / period
         n_end = (end - planet_ephemeris) / period
         n = int(n_start)
@@ -146,9 +170,10 @@ def check_jwst_event_type(period, planet_ephemeris, jwst_observations):
         else:
             event_type = "NO EVENT"
 
-        event_types[fileid] = event_type
+        # Locate row for file ID in table and assign event type.
+        observations_with_events.loc["ArchiveFileID", fileid]["event_type"] = event_type
 
-    return event_types
+    return observations_with_events
 
 
 def query_nexsci_archive(target_name):
@@ -175,5 +200,18 @@ def query_nexsci_archive(target_name):
 
     # See if the preferred data set from NEA
     preferred_data_index = np.where(all_planet_data["default_flag"] == 1)[0]
+
+    period, ephemeris, refname = (
+        all_planet_data[preferred_data_index]["pl_orbper"][0].value,
+        all_planet_data[preferred_data_index]["pl_tranmid"][0].value,
+        all_planet_data[preferred_data_index]["pl_refname"][0],
+    )
+
+    if period or ephemeris is None:
+        warning_msg = f"""Returned result from NEA for orbital period and planetary ephemeris are None or NaN. Review results for planetary parameters that have calculated values.
+pl_orbper = {period}
+pl_tranmid = {ephemeris}
+pl_refname = {refname}"""
+        warnings.warn(warning_msg)
 
     return all_planet_data, preferred_data_index
