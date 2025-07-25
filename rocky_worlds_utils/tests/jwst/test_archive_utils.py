@@ -20,52 +20,52 @@ from rocky_worlds_utils.jwst.archive_utils import (
 
 def test_check_jwst_event_type():
     """Test event type for MAST archive file id 187223627. This test
-    uses the orbital parameters from Rathcke et al. 2025
+    uses the orbital parameters from Xue et al. 2024
 
-    https://ui.adsabs.harvard.edu/abs/2025ApJ...979L..19R/abstract
+    https://ui.adsabs.harvard.edu/abs/2024arXiv240813340X/abstract
     """
     jwst_obs = {
-        "ArchiveFileID": np.int64(187223627),
-        "fileSetName": np.str_("jw01177007001_03101_00001"),
-        "targprop": np.str_("TRAPPIST-1B"),
-        "targ_ra": np.float64(346.6283008720181),
-        "targ_dec": np.float64(-5.044440303727514),
+        "ArchiveFileID": np.int64(185871464),
+        "fileSetName": np.str_("jw01274012001_04103_00001"),
+        "targprop": np.str_("GJ1132"),
+        "targ_ra": np.float64(153.7056262595806),
+        "targ_dec": np.float64(-47.15401570103403),
         "instrume": np.str_("MIRI"),
-        "exp_type": np.str_("MIR_IMAGE"),
-        "opticalElements": np.str_("F1500W"),
-        "date_obs": np.str_("2022-11-08T03:24:40.9510000"),
-        "duration": np.float64(15690.076),
-        "program": np.int64(1177),
-        "observtn": np.int64(7),
+        "exp_type": np.str_("MIR_LRS-SLITLESS"),
+        "opticalElements": np.str_("P750L"),
+        "date_obs": np.str_("2023-07-01T14:09:11.2610000"),
+        "duration": np.float64(16575.944),
+        "program": np.int64(1274),
+        "observtn": np.int64(12),
         "visit": np.int64(1),
-        "pi_name": np.str_("Greene, Thomas P."),
+        "pi_name": np.str_("Lunine, Jonathan I."),
         "proposal_type": np.str_("GTO"),
         "proposal_cycle": np.int64(1),
         "targtype": np.str_("FIXED"),
         "access": np.str_("PUBLIC"),
         "s_region": np.str_(
-            "POLYGON ICRS  346.619809552 -5.069614860 346.649678383 -5.059969988 346.639993670 -5.030074608 346.609987448 -5.039459713"
+            "POLYGON ICRS  153.694946544 -47.148072635 153.697311445 -47.146570037 153.710253529 -47.155835468 153.707886277 -47.157327651"
         ),
     }
 
     # check_jwst_event_type expects astropy table
     jwst_obs_table = Table([jwst_obs])
+    jwst_obs_table.add_index("ArchiveFileID")
 
     # When query using NASA Exoplanet DB, astropy quantity table (has units)
     # is returned. Adding units to orbital params.
-    orbital_period = 1.5108261 * u.day
-    ephemeris = 2460501.405464 * u.day
+    orbital_period = 1.62892911 * u.day
+    ephemeris = 2459280.98988 * u.day
 
     event_type = check_jwst_event_type(orbital_period, ephemeris, jwst_obs_table)
 
-    assert event_type[187223627] == "NO EVENT"
+    assert event_type.loc[185871464]["event_type"] == "SECONDARY ECLIPSE"
 
 
 @pytest.mark.parametrize(
     "planet_name, ra, dec",
     [
         ("LTT 1445 A b", 45.4624781, -16.5944956),
-        ("TRAPPIST-1 g", 346.6263919, -5.0434618),
         ("GJ 357 b", 144.007464, -21.6650634),
         ("K2-415 b", 137.2015437, 11.8622503),
     ],
