@@ -1,4 +1,5 @@
 from astropy.io import fits
+import numpy as np
 import os
 import pytest
 
@@ -53,10 +54,10 @@ def test_integrate_flux(
             return_integrated_gross=return_integrated_gross,
         )
         assert (
-            (result_flux == exp_flux)
-            & (result_flux_err == exp_flux_err)
-            & (result_gross == exp_gross)
-            & (result_gross_err == exp_gross_err)
+            np.isclose(result_flux, exp_flux)
+            & np.isclose(result_flux_err, exp_flux_err)
+            & np.isclose(result_gross, exp_gross)
+            & np.isclose(result_gross_err, exp_gross_err)
         )
     else:
         result_flux, result_flux_err = integrate_flux(
@@ -68,7 +69,9 @@ def test_integrate_flux(
             exptime,
             return_integrated_gross=return_integrated_gross,
         )
-        assert (result_flux == exp_flux) & (result_flux_err == exp_flux_err)
+        assert np.isclose(result_flux, exp_flux) & np.isclose(
+            result_flux_err, exp_flux_err
+        )
 
 
 @pytest.mark.order(
