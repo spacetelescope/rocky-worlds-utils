@@ -11,7 +11,7 @@ from astroquery.mast import Observations
 
 
 MAX_RETRIES = 3
-UMASK_GROUP_WRITABLE = 0o007
+UMASK_OWNER_RW_GROUP_RX = 0o0027
 
 # Auto-disable colors if stdout is redirected
 USE_COLOR = sys.stdout.isatty()
@@ -50,7 +50,9 @@ def temporary_umask(new_umask):
 
 def make_shared_dir(foldername, output_dir, exist_ok=True, dry_run=False):
     """
-    Create a directory with group-writable permissions (02770 mode).
+    Create a directory with group-readable permissions (02750 mode).
+
+    02750: setgid, owner=rwx, group=rx, others=---
 
     Parameters
     ----------
@@ -73,8 +75,8 @@ def make_shared_dir(foldername, output_dir, exist_ok=True, dry_run=False):
         if dry_run:
             log("[DRY-RUN]", YELLOW, f"Would create: {fullpath}")
         else:
-            with temporary_umask(UMASK_GROUP_WRITABLE):
-                os.makedirs(fullpath, mode=0o2770, exist_ok=exist_ok)
+            with temporary_umask(UMASK_OWNER_RW_GROUP_RX):
+                os.makedirs(fullpath, mode=0o2750, exist_ok=exist_ok)
     return fullpath
 
 
@@ -289,13 +291,8 @@ def main():
 
     # Directory structure
     uncalibrated_dir = make_shared_dir('Uncalibrated', output_dir, dry_run=dry_run)
-    stage1_dir = make_shared_dir('Analysis_A/Quicklook/MAST_Stage1',
+    stage1_dir = make_shared_dir('MAST_Stage1',
                                  output_dir, dry_run=dry_run)
-    make_shared_dir('Analysis_A/DeepDive', output_dir, dry_run=dry_run)
-    make_shared_dir('Analysis_A/FluxCal', output_dir, dry_run=dry_run)
-    make_shared_dir('Analysis_A/notebooks', output_dir, dry_run=dry_run)
-    make_shared_dir('Analysis_B/DeepDive', output_dir, dry_run=dry_run)
-    make_shared_dir('Analysis_B/notebooks', output_dir, dry_run=dry_run)
 
     all_downloads_succeeded = True
     for obs_id in observation_ids:
