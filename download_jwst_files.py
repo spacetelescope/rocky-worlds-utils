@@ -2,6 +2,7 @@
 
 import os
 import sys
+import stat
 import time
 import argparse
 import requests
@@ -11,7 +12,6 @@ from astroquery.mast import Observations
 
 
 MAX_RETRIES = 3
-UMASK_OWNER_RW_GROUP_RX = 0o0027
 
 # Auto-disable colors if stdout is redirected
 USE_COLOR = sys.stdout.isatty()
@@ -48,11 +48,13 @@ def temporary_umask(new_umask):
         os.umask(old_umask)
 
 
-def make_shared_dir(foldername, output_dir, exist_ok=True, dry_run=False):
+def make_shared_dir(foldername, output_dir, exist_ok=True, dry_run=False, mode=0o2750):
     """
-    Create a directory with group-readable permissions (02750 mode).
+    Create a directory with specific permissions for owner and group.
 
-    02750: setgid, owner=rwx, group=rx, others=---
+    Common modes:
+    - 0o2750: setgid, owner=rwx, group=rx, others=---
+    - 0o2770: setgid, owner=rwx, group=rwx, others=---
 
     Parameters
     ----------
@@ -64,6 +66,9 @@ def make_shared_dir(foldername, output_dir, exist_ok=True, dry_run=False):
         Whether to suppress error if directory already exists.
     dry_run : bool
         If True, directory is not actually created.
+    mode : int, optional
+        Octal permission mode to use when creating the directory.
+        Defaults to 0o2750 (owner rwx, group rx, setgid).
 
     Returns
     -------
@@ -71,12 +76,21 @@ def make_shared_dir(foldername, output_dir, exist_ok=True, dry_run=False):
         Full path to the created directory.
     """
     fullpath = os.path.join(output_dir, foldername)
+
+    # Decide umask dynamically based on whether group-write is intended
+    if mode & 0o0020:  # Check group write bit
+        desired_umask = 0o0007  # Allow group write
+    else:
+        desired_umask = 0o0027  # Block group write, all others
+
     if not os.path.exists(fullpath):
         if dry_run:
-            log("[DRY-RUN]", YELLOW, f"Would create: {fullpath}")
+            perm_str = stat.filemode(stat.S_IFDIR | mode)
+            log("[DRY-RUN]", YELLOW, f"Would create: {fullpath} with permissions {perm_str}")
         else:
-            with temporary_umask(UMASK_OWNER_RW_GROUP_RX):
-                os.makedirs(fullpath, mode=0o2750, exist_ok=exist_ok)
+            with temporary_umask(desired_umask):
+                os.makedirs(fullpath, mode=mode, exist_ok=exist_ok)
+
     return fullpath
 
 
@@ -286,8 +300,7 @@ def main():
     root = ET.fromstring(response.content)
 
     output_dir = os.path.join(base_dir, planet_name, f"visit{visit_id}")
-    if not dry_run:
-        os.makedirs(output_dir, exist_ok=True)
+    make_shared_dir(output_dir, '/', dry_run=dry_run, mode=0o2770)
 
     # Directory structure
     uncalibrated_dir = make_shared_dir('Uncalibrated', output_dir, dry_run=dry_run)
