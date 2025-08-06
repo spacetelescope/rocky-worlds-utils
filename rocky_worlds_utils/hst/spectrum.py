@@ -10,15 +10,17 @@ Authors
 
 from __future__ import division, print_function, absolute_import, unicode_literals
 
-import numpy as np
-import astropy.units as u
 import astropy.constants as c
-import matplotlib.pyplot as plt
-from scipy.integrate import simpson
 from astropy.io import fits
+import astropy.units as u
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+from scipy.integrate import simpson
+
 
 # Local scripts
-from tools import nearest_index
+from rocky_worlds_utils.hst.tools import nearest_index
 
 __all__ = [
     "read_hsla_product",
@@ -71,10 +73,11 @@ def read_hsla_product(filename, prefix=None):
     else:
         pass
 
-    data = fits.getdata(prefix + filename, ext=1)
-    wavelength = data["wavelength"][0]
-    flux = data["flux"][0]
-    error = data["error"][0]
+    full_file_path = os.path.join(prefix, filename)
+    data = fits.getdata(full_file_path, ext=1)
+    wavelength = data["wavelength"].ravel()
+    flux = data["flux"].ravel()
+    error = data["error"].ravel()
     return wavelength, flux, error
 
 

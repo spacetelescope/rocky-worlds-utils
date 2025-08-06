@@ -15,6 +15,7 @@ dependencies = [
     "astroquery>=0.4.10",
     "calcos>=3.6.1",
     "costools>=1.2.6",
+    "crds>=12.1.10",
     "matplotlib>=3.10.3",
     "numpy>=2.2.4",
     "scipy>=1.15.2",

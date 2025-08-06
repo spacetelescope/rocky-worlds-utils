@@ -8,13 +8,13 @@ Authors
 - Leonardo dos Santos <<ldsantos@stsci.edu>>
 """
 
-import numpy as np
 import astropy.units as u
-
+from astropy.io import fits
 from astropy.stats import poisson_conf_interval
 from astropy.time import Time
+import numpy as np
 from scipy.integrate import simpson
-from astropy.io import fits
+import os
 
 __all__ = ["integrate_flux", "read_fits", "generate_light_curve", "generate_hlsp"]
 
@@ -86,8 +86,8 @@ def integrate_flux(
     """
     # Raise an error if the user-defined wavelength range is outside of the
     # hard boundaries of the wavelength list
-    if (wavelength_range[1] > wavelength_list[-1]) or (
-        wavelength_range[0] < wavelength_list[0]
+    if max(wavelength_range) > max(wavelength_list) or min(wavelength_range) < min(
+        wavelength_list
     ):
         raise ValueError(
             "Wavelength_range must be within the boundaries of the wavelength_list."
@@ -192,7 +192,9 @@ def read_fits(dataset, prefix, target_name=None):
         - `net` (net count rate in counts / s)
     """
     x1d_filename = dataset + "_ts_x1d.fits"
-    x1d_header_0 = fits.getheader(str(prefix) + "/" + x1d_filename, 0)
+    x1d_filepath = os.path.join(prefix, x1d_filename)
+    x1d_header_0 = fits.getheader(x1d_filepath, 0)
+
     instrument = x1d_header_0["INSTRUME"]
     grating = x1d_header_0["OPT_ELEM"]
     cenwave = x1d_header_0["CENWAVE"]
@@ -210,7 +212,7 @@ def read_fits(dataset, prefix, target_name=None):
     if target_name is None:
         target_name = x1d_header_0["TARGNAME"]
 
-    with fits.open(str(prefix) + "/" + x1d_filename) as hdu:
+    with fits.open(x1d_filepath) as hdu:
         n_subexposures = len(hdu) - 1
 
         # Instantiate some important arrays

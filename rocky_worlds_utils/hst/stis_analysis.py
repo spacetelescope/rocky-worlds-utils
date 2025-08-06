@@ -67,12 +67,22 @@ def timetag_split(
     # Initial checks
     if output_dir == prefix:
         raise ValueError("The output directory must be different from the prefix.")
+
+    # If output_dir doesn't exist, create it.
+    os.makedirs(output_dir, exist_ok=True)
+
+    if not prefix.endswith(os.path.sep):
+        prefix += os.path.sep
+
+    if not output_dir.endswith(os.path.sep):
+        output_dir += os.path.sep
+
     if output_file_name is None:
-        output_file = str(output_dir) + "/" + dataset + "_ts_x1d.fits"
-    elif output_file_name[:-5] != ".fits":
+        output_file = os.path.join(output_dir, dataset + "_ts_x1d.fits")
+    elif not output_file_name.endswith(".fits"):
         raise ValueError("The extension of the output file must be .fits.")
     else:
-        output_file = str(output_dir) + "/" + output_file_name
+        output_file = os.path.join(output_dir, output_file_name)
 
     # Test if output file exists, and if it does, delete it if overwrite is True
     if os.path.isfile(output_file):
@@ -83,11 +93,11 @@ def timetag_split(
     else:
         pass
 
-    x1d_filename = dataset + "_x1d.fits"
-
-    x1d_header_0 = fits.getheader(str(prefix) + "/" + x1d_filename, 0)
-    x1d_header_1 = fits.getheader(str(prefix) + "/" + x1d_filename, 1)
-    x1d_data = fits.getdata(str(prefix) + "/" + x1d_filename)
+    x1d_dataset = dataset + "_x1d.fits"
+    x1d_filename = os.path.join(prefix, x1d_dataset)
+    x1d_header_0 = fits.getheader(x1d_filename, 0)
+    x1d_header_1 = fits.getheader(x1d_filename, 1)
+    x1d_data = fits.getdata(x1d_filename)
 
     # Perform some other checks
     if x1d_header_0["OBSTYPE"] != "SPECTROSCOPIC":
@@ -110,21 +120,21 @@ def timetag_split(
     tag_filename = dataset + "_tag.fits"
 
     stistools.inttag.inttag(
-        tagfile=str(prefix) + "/" + tag_filename,
-        output=str(output_dir) + "/" + dataset + "_ts_raw.fits",
+        tagfile=os.path.join(prefix, tag_filename),
+        output=os.path.join(output_dir, dataset + "_ts_raw.fits"),
         rcount=n_subexposures,
     )
 
     # And now we run the raw file through calstis, more specifically basic2d,
     # which does not extract the spectrum yet
     stistools.basic2d.basic2d(
-        str(output_dir) + "/" + dataset + "_ts_raw.fits",
-        str(output_dir) + "/" + dataset + "_ts_flt.fits",
+        os.path.join(output_dir, dataset + "_ts_raw.fits"),
+        os.path.join(output_dir, dataset + "_ts_flt.fits"),
     )
 
     stistools.wavecal.wavecal(
-        str(output_dir) + "/" + dataset + "_ts_flt.fits",
-        wavecal=str(prefix) + "/" + dataset + "_wav.fits",
+        os.path.join(output_dir, dataset + "_ts_flt.fits"),
+        wavecal=os.path.join(prefix, dataset + "_wav.fits"),
     )
 
     # Now we extract the spectrum in the same location as the original full
@@ -140,8 +150,8 @@ def timetag_split(
     # Process the time series
     extract(
         dataset + "_ts",
-        str(output_dir) + "/",
-        str(output_dir) + "/",
+        output_dir,
+        output_dir,
         extract_yloc,
         extract_size,
         extract_bk1_size,
@@ -153,8 +163,8 @@ def timetag_split(
 
     # Clean intermediate steps if requested
     if clean_intermediate_steps is True:
-        os.remove(str(output_dir) + "/" + dataset + "_ts_flt.fits")
-        os.remove(str(output_dir) + "/" + dataset + "_ts_raw.fits")
+        os.remove(os.path.join(output_dir, dataset + "_ts_flt.fits"))
+        os.remove(os.path.join(output_dir, dataset + "_ts_raw.fits"))
     else:
         pass
 
@@ -222,21 +232,18 @@ def extract(
         ``[dataset]_ts_x1d.fits``. Default is ``None``.
     """
     # Initial checks
-    if prefix[-1] != "/":
-        prefix += "/"
-    else:
-        pass
-    if output_dir[-1] != "/":
-        output_dir += "/"
-    else:
-        pass
+    if not prefix.endswith(os.path.sep):
+        prefix += os.path.sep
+
+    if not output_dir.endswith(os.path.sep):
+        output_dir += os.path.sep
 
     # I/O
-    input_file = str(prefix) + dataset + "_flt.fits"
+    input_file = os.path.join(prefix, dataset + "_flt.fits")
     if output_file_name is not None:
-        output_file = output_dir + output_file_name
+        output_file = os.path.join(output_dir, output_file_name)
     else:
-        output_file = output_dir + dataset + "_x1d.fits"
+        output_file = os.path.join(output_dir, dataset + "_x1d.fits")
 
     # Test if output file exists, and if it does, delete it if overwrite is True
     if os.path.isfile(output_file):
