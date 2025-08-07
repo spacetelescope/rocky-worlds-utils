@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 This module contains useful tools to analyze Lyman-alpha profiles with HST data.
-This code is heavily inspired by the lyapy code authored by Allison Youngblood:
+This code is inspired by the lyapy code authored by Allison Youngblood:
 https://github.com/allisony/lyapy.
 
 Authors
@@ -12,29 +12,25 @@ Authors
 
 
 import numpy as np
-import astropy.units as u
-import astropy.constants as c
-
-from astropy.modeling.models import Voigt1D
-from scipy.special import voigt_profile
+from scipy.special import wofz, voigt_profile
 
 
 __all__ = ["lya_intrinsic_profile", "ism_profile"]
 
 
-# Defining global constants
-_LYMAN_A_REST_WAVELENGTH = 1215.6702  # Angstrom
-_LYMAN_A_OSCILLATOR_STRENGTH = 0.4161
-_LYMAN_A_DAMPENING = 6.26E8
-_DEUTERIUM_REST_WAVELENGTH = 1215.3394  # Angstrom
-_DEUTERIUM_OSCILLATOR_STRENGTH = 0.4161
-_DEUTERIUM_DAMPENING = 6.27e8
-_DEUTERIUM_TO_H_RATIO = 1.5E-5
-_C = c.c.to(u.km / u.s).value
-_C_CGS = 2.99792458e10
-_PROTON_MASS_CGS = 1.6726231e-24  # Proton mass in grams
-_ELECTRON_MASS_CGS = _PROTON_MASS_CGS / 1836  # Electron mass in grams
-_ELECTRON_CHARGE = 4.8032e-10  # Electron charge in esu
+# Physical constants
+c = 2.99792458e10        # speed of light [cm/s]
+k_B = 1.380649e-16       # Boltzmann constant [erg/K]
+m_H = 1.6735575e-24      # hydrogen mass [g]
+m_D = 2 * m_H            # deuterium mass [approximate]
+e = 4.80320425e-10       # electron charge [esu]
+m_e = 9.10938356e-28     # electron mass [g]
+f = 0.4164               # oscillator strength for Lyman-alpha
+gamma = 6.265e8          # natural broadening [s^-1]
+
+# Line center wavelengths [cm]
+lambda_HI_rest = 1215.67e-8
+lambda_DI_rest = 1215.3394e-8
 
 
 # Lyman-alpha intrinsic profile
@@ -48,7 +44,7 @@ def lya_intrinsic_profile(wavelength, star_velocity, log_lorentzian_amplitude,
     Parameters
     ----------
     wavelength : ``numpy.ndarray``
-        Wavelength array.
+        Wavelength array in unit Angstrom.
 
     star_velocity : ``float``
         Radial velocity of the star in km/s (reasonable range: -300 to +300).
@@ -73,11 +69,14 @@ def lya_intrinsic_profile(wavelength, star_velocity, log_lorentzian_amplitude,
         Stellar Lyman-alpha intrinsic profile.
 
     """
-    lya_rest_wl = _LYMAN_A_REST_WAVELENGTH
-    line_center = star_velocity / _C * lya_rest_wl + lya_rest_wl
-    sigma_gaussian = gaussian_width / _C * lya_rest_wl / 2.35482
-    hwhm_lorentzian = lorentzian_width / _C * lya_rest_wl / 2
-    normalization = 2 / (np.pi * lorentzian_width / _C * lya_rest_wl)
+    lya_rest_wl = lambda_HI_rest * 1E8
+    gaussian_width_cm = gaussian_width * 1E5
+    lorentzian_width_cm = lorentzian_width * 1E5
+    star_velocity_cm = star_velocity * 1E5
+    line_center = star_velocity_cm / c * lya_rest_wl + lya_rest_wl
+    sigma_gaussian = gaussian_width_cm / c * lya_rest_wl / 2.35482
+    hwhm_lorentzian = lorentzian_width_cm / c * lya_rest_wl / 2
+    normalization = 2 / (np.pi * lorentzian_width_cm / c * lya_rest_wl)
     amplitude = 10 ** log_lorentzian_amplitude
 
     emission_profile = (normalization * amplitude *
@@ -91,59 +90,81 @@ def lya_intrinsic_profile(wavelength, star_velocity, log_lorentzian_amplitude,
 
 # ISM absorption profile
 def ism_profile(wavelength, log_h1_column_density, gas_temperature,
-                los_velocity=0.0):
+                turbulence_velocity=0.0, los_velocity=0.0,
+                deuterium_hydrogen_ratio=2e-5):
     """
-    """
-    # Some necessary bookkeeping here
-    lya_rest_wl = _LYMAN_A_REST_WAVELENGTH
-    lya_f = _LYMAN_A_OSCILLATOR_STRENGTH
-    ly_a = _LYMAN_A_DAMPENING
-    deuterium_rest_wl = _DEUTERIUM_REST_WAVELENGTH
-    deuterium_f = _DEUTERIUM_OSCILLATOR_STRENGTH
-    deuterium_a = _DEUTERIUM_DAMPENING
-    k_b = 1.380649e-23  # Boltzmann's constant in J / K
-    lya_nu0 = _C / lya_rest_wl  # Reference frequency in Hz
-
-    frequency = _C_CGS / wavelength / 1E8  # Hz
-
-
-def absorption_cross_section(frequency, rest_frequency, oscillator_strength,
-                             einstein_coefficient, broadening_temperature,
-                             particle_mass, velocity_los=0.0):
-    """
+    Calculates the ISM profile of a star for a given wavelength array and ISM
+    properties.
 
     Parameters
     ----------
-    frequency
-    rest_frequency
-    oscillator_strength
-    einstein_coefficient
-    broadening_temperature
-    particle_mass
-    velocity_los
+    wavelength: ``numpy.ndarray``
+        Wavelength array.
+
+    log_h1_column_density : ``float``
+        Logarithm 10 of the column density of neutral hydrogen in the line of
+        sight.
+
+    gas_temperature : ``float``
+        ISM gas isothermal temperature in Kelvin.
+
+    turbulence_velocity : ``float``, optional
+        ISM turbulence broadening velocity in km/s. Default is 0.0.
+
+    los_velocity : ``float``, optional
+        Line-of-sight velocity of the ISM cloud in km/s. Default is 0.0.
+
+    deuterium_hydrogen_ratio : ``float``, optional
+        Deuterium hydrogen ratio of the ISM cloud. Default is 2E-5.
 
     Returns
     -------
-
+    absorption_profile : ``numpy.ndarray``
+        ISM absorption profile in the Lyman-alpha and deuterium lines.
     """
-    # Constants in SI
-    c_speed = 2.99792458e+08  # Speed of light in m / s
-    k_b = 1.380649e-23  # Boltzmann's constant in J / K
+    # User parameters
+    n_hi = 10 ** log_h1_column_density  # column density of H I [cm^-2]
+    n_di = n_hi * deuterium_hydrogen_ratio  # column density of D I [cm^-2]
 
-    # Calculate the Lorentzian width of the Voigt profile
-    gamma = einstein_coefficient / 4 / np.pi
+    # Convert to Hz
+    def _lambda_to_nu(lambda_cm):
+        return c / lambda_cm
 
-    # Calculate Doppler width (standard deviation) of the Voigt profile
-    alpha_nu = (rest_frequency / c_speed *
-                (k_b * broadening_temperature / particle_mass) ** 0.5)
+    # Frequency array
+    frequency = c / (wavelength * 1e-8)  # Hz
 
-    # Calculate the frequency shifts due to gas velocity
-    velocity_los_si = velocity_los * 1E3  # Convert to m / s
-    delta_nu_add = velocity_los_si / c_speed * rest_frequency
+    # Shifted line centers
+    lambda_hi = lambda_HI_rest * (1 + los_velocity * 1e5 / c)
+    lambda_di = lambda_DI_rest * (1 + los_velocity * 1e5 / c)
+    nu_hi = _lambda_to_nu(lambda_hi)
+    nu_di = _lambda_to_nu(lambda_di)
 
-    # Calculate absorption Voigt profile
-    profile = voigt_profile(frequency + delta_nu_add, alpha_nu, gamma)
+    # Doppler b parameters
+    b_hi = np.sqrt(2 * k_B * gas_temperature / m_H + turbulence_velocity ** 2)
+    b_di = np.sqrt(2 * k_B * gas_temperature / m_D + turbulence_velocity ** 2)
+    delta_nu_d_hi = nu_hi * b_hi / c
+    delta_nu_d_di = nu_di * b_di / c
+    a_hi = gamma / (4 * np.pi * delta_nu_d_hi)
+    a_di = gamma / (4 * np.pi * delta_nu_d_di)
 
-    # Calculate the absorption cross-section
-    cross_section = 2.654008854574474e-06 * oscillator_strength * profile
-    return cross_section
+    # Voigt profile function
+    def _voigt_profile(nu, nu_0, a, delta_nu_d):
+        u = (nu - nu_0) / delta_nu_d
+        return np.real(wofz(u + 1j * a)) / (delta_nu_d * np.sqrt(np.pi))
+
+    # Cross-section coefficient
+    sigma_0 = (np.pi * e ** 2) / (m_e * c) * f  # [cm² Hz]
+
+    # H I absorption
+    phi_hi = _voigt_profile(frequency, nu_hi, a_hi, delta_nu_d_hi)
+    tau_hi = sigma_0 * n_hi * phi_hi
+
+    # D I absorption
+    phi_di = _voigt_profile(frequency, nu_di, a_di, delta_nu_d_di)
+    tau_di = sigma_0 * n_di * phi_di
+
+    # Total optical depth and flux
+    tau_total = tau_hi + tau_di
+    absorption_profile = np.exp(-tau_total)
+
+    return absorption_profile
