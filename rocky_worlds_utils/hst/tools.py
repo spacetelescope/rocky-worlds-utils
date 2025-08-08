@@ -15,7 +15,7 @@ import numpy as np
 
 
 __all__ = [
-    "nearest_index", "get_observations"
+    "nearest_index", "get_observations", "get_stis_lsf"
 ]
 
 

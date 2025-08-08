@@ -13,9 +13,11 @@ Authors
 
 import numpy as np
 from scipy.special import wofz, voigt_profile
+from tools import get_stis_lsf
+from astropy.convolution import convolve
 
 
-__all__ = ["lya_intrinsic_profile", "ism_profile"]
+__all__ = ["lya_intrinsic_profile", "ism_profile", "observed_lya_profile"]
 
 
 # Physical constants
@@ -168,3 +170,101 @@ def ism_profile(wavelength, log_h1_column_density, gas_temperature,
     absorption_profile = np.exp(-tau_total)
 
     return absorption_profile
+
+
+# Calculate the Lyman-alpha profile as it would be observed with HST/STIS
+def observed_lya_profile(grating, aperture, wavelength,
+                         star_log_lorentzian_amplitude, star_lorentzian_width,
+                         star_gaussian_width, ism_log_h1_column_density,
+                         ism_gas_temperature, star_velocity=0.0,
+                         star_self_absorption_parameter=0,
+                         ism_turbulence_velocity=0.0, ism_los_velocity=0.0,
+                         ism_deuterium_hydrogen_ratio=2e-5,
+                         return_all_profiles=False):
+    """
+    Calculates the Lyman-alpha profile of a star given its intrinsic parameters,
+    parameters of the interstellar medium and the instrumental parameters.
+
+    Parameters
+    ----------
+    grating : ``str``
+        String that describes the STIS grating. The options are ``'G140L'``,
+        ``'G140M'``, ``'E140M'``, ``'E140H'``, `'G230L'``,  ``'G230M'``,
+        ``'E230M'``, ``'E230H'`, ``'G430L'``, ``'G430M'``, ``'G750L'`` and
+        ``'G750M'``.
+
+    aperture : ``str``
+        String that describes the STIS aperture. The options are ``'52x0.1'``,
+        ``'52x0.2'``, ``'52x0.5'``, and ``'52x2.0'``.
+
+    wavelength: ``numpy.ndarray``
+        Wavelength array.
+
+    star_log_lorentzian_amplitude : ``float``
+        Logarithm of the amplitude of the Lorentzian (emission line) in
+        erg/cm2/s/A (reasonable range: -13 to -9).
+
+    star_lorentzian_width : ``float``
+        FWHM of the Lorentzian in km/s (reasonable range: ~5-100).
+
+    star_gaussian_width : ``float``
+        FWHM of the Gaussian in km/s (reasonable range: ~10-200).
+
+    ism_log_h1_column_density : ``float``
+        Logarithm 10 of the column density of neutral hydrogen in the line of
+        sight.
+
+    ism_gas_temperature : ``float``
+        ISM gas isothermal temperature in Kelvin.
+
+    star_velocity : ``float``, optional
+        Radial velocity of the star in km/s (reasonable range: -300 to +300).
+        Default is 0.
+
+    star_self_absorption_parameter : ``float``, optional
+        Self-absorption parameter "p" (unitless) - (reasonable range: 0-3).
+        Default is 0, or no self-absorption.
+
+    ism_turbulence_velocity : ``float``, optional
+        ISM turbulence broadening velocity in km/s. Default is 0.0.
+
+    ism_los_velocity : ``float``, optional
+        Line-of-sight velocity of the ISM cloud in km/s. Default is 0.0.
+
+    ism_deuterium_hydrogen_ratio : ``float``, optional
+        Deuterium hydrogen ratio of the ISM cloud. Default is 2E-5.
+
+    return_all_profiles
+
+    Returns
+    -------
+    observed_lya_flux
+    observable_lya_profile
+    intrinsic_profile
+    ism_absorption_profile
+    """
+    intrinsic_profile = lya_intrinsic_profile(wavelength,
+                                              star_velocity,
+                                              star_log_lorentzian_amplitude,
+                                              star_lorentzian_width,
+                                              star_gaussian_width,
+                                              star_self_absorption_parameter)
+    ism_absorption_profile = ism_profile(wavelength,
+                                         ism_log_h1_column_density,
+                                         ism_gas_temperature,
+                                         ism_turbulence_velocity,
+                                         ism_los_velocity,
+                                         ism_deuterium_hydrogen_ratio)
+    observable_lya_profile = intrinsic_profile * ism_absorption_profile
+
+    lsf_wavelength, lsf_profile = get_stis_lsf(grating, aperture)
+    lsf_wavelength += np.mean(wavelength)  # Necessary for convolution to work
+    lsf_profile_interp = np.interp(wavelength, lsf_wavelength, lsf_profile,
+                                   left=0.0, right=0.0)
+    observed_lya_flux = convolve(observable_lya_profile, lsf_profile_interp)
+
+    if return_all_profiles:
+        return (observed_lya_flux, observable_lya_profile, intrinsic_profile,
+                ism_absorption_profile)
+    else:
+        return observed_lya_flux
