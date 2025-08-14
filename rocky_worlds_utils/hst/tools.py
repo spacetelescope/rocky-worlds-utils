@@ -8,6 +8,7 @@ Authors
 - Leonardo dos Santos <<ldsantos@stsci.edu>>
 """
 
+from astropy.io import fits
 from astroquery.mast import Observations
 from crds import assign_bestrefs
 import glob
@@ -15,8 +16,43 @@ import numpy as np
 
 
 __all__ = [
-    "nearest_index", "get_observations", "get_stis_lsf"
+    "obs_mode_check", "nearest_index", "get_observations", "get_stis_lsf"
 ]
+
+
+# Observation mode check
+def obs_mode_check(datasets, prefix):
+    """
+    Checks wheter a list of datasets were observed in the same mode.
+
+    Parameters
+    ----------
+    datasets : ``list``
+        List of dataset names containing the spectra to be co-added. They must
+        all have been observed in the same mode.
+
+    prefix : ``str``
+        Location of x1d files to be co-added.
+    """
+    # Check if datasets correspond to the same mode
+    instrument = []
+    optical_element = []
+    central_wavelength = []
+    for dataset in datasets:
+        header = fits.getheader(prefix + dataset + "_x1d.fits")
+        instrument.append(header['INSTRUME'])
+        optical_element.append(header['OPT_ELEM'])
+        central_wavelength.append(header['CENWAVE'])
+
+    def _all_elements_equal(lst):
+        return all(x == lst[0] for x in lst)
+
+    if (not _all_elements_equal(instrument) or
+            not _all_elements_equal(optical_element) or
+            not _all_elements_equal(central_wavelength)):
+        return False
+    else:
+        return True  # All lists are uniform and equal
 
 
 def nearest_index(array, target_value):
