@@ -13,7 +13,7 @@ Authors
 
 import numpy as np
 from scipy.special import wofz, voigt_profile
-from tools import get_stis_lsf
+from rocky_worlds_utils.hst.tools import get_stis_lsf
 from astropy.convolution import convolve
 
 
