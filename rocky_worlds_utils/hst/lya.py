@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 This module contains useful tools to analyze Lyman-alpha profiles with HST data.
-This code is inspired by the lyapy code authored by Allison Youngblood:
-https://github.com/allisony/lyapy.
+This code take a few inspirations from the lyapy code authored by Allison
+Youngblood: https://github.com/allisony/lyapy.
 
 Authors
 -------
@@ -21,14 +21,14 @@ __all__ = ["intrinsic_stellar_profile", "ism_profile", "observed_lya_profile"]
 
 
 # Physical constants
-c = 2.99792458e10        # speed of light [cm/s]
-k_B = 1.380649e-16       # Boltzmann constant [erg/K]
-m_H = 1.6735575e-24      # hydrogen mass [g]
-m_D = 2 * m_H            # deuterium mass [approximate]
-e = 4.80320425e-10       # electron charge [esu]
-m_e = 9.10938356e-28     # electron mass [g]
-f = 0.4164               # oscillator strength for Lyman-alpha
-gamma = 6.265e8          # natural broadening [s^-1]
+light_speed = 2.99792458e10         # speed of light [cm/s]
+boltzmann_constant = 1.380649e-16   # Boltzmann constant [erg/K]
+hydrogen_mass = 1.6735575e-24       # hydrogen mass [g]
+deuterium_mass = 2 * hydrogen_mass  # deuterium mass [approximate]
+electron_charge = 4.80320425e-10    # electron charge [esu]
+electron_mass = 9.10938356e-28      # electron mass [g]
+lya_oscillator_strength = 0.4164    # oscillator strength for Lyman-alpha
+lya_broadening = 6.265e8            # natural broadening [s^-1]
 
 # Line center wavelengths [cm]
 lambda_HI_rest = 1215.67e-8
@@ -82,10 +82,11 @@ def intrinsic_stellar_profile(wavelength, star_velocity,
     gaussian_width_cm = gaussian_width * 1E5
     lorentzian_width_cm = lorentzian_width * 1E5
     star_velocity_cm = star_velocity * 1E5
-    line_center = star_velocity_cm / c * line_rest_wl + line_rest_wl
-    sigma_gaussian = gaussian_width_cm / c * line_rest_wl / 2.35482
-    hwhm_lorentzian = lorentzian_width_cm / c * line_rest_wl / 2
-    normalization = 2 / (np.pi * lorentzian_width_cm / c * line_rest_wl)
+    line_center = star_velocity_cm / light_speed * line_rest_wl + line_rest_wl
+    sigma_gaussian = gaussian_width_cm / light_speed * line_rest_wl / 2.35482
+    hwhm_lorentzian = lorentzian_width_cm / light_speed * line_rest_wl / 2
+    normalization = 2 / (np.pi * lorentzian_width_cm /
+                         light_speed * line_rest_wl)
     amplitude = 10 ** log_lorentzian_amplitude
 
     emission_profile = (normalization * amplitude *
@@ -131,6 +132,16 @@ def ism_profile(wavelength, log_h1_column_density, gas_temperature,
     absorption_profile : ``numpy.ndarray``
         ISM absorption profile in the Lyman-alpha and deuterium lines.
     """
+    # Abbreviating physical constants
+    c = light_speed
+    k_b = boltzmann_constant
+    m_hi = hydrogen_mass
+    m_di = deuterium_mass
+    gamma = lya_broadening
+    f = lya_oscillator_strength
+    e = electron_charge
+    m_e = electron_mass
+
     # User parameters
     n_hi = 10 ** log_h1_column_density  # column density of H I [cm^-2]
     n_di = n_hi * deuterium_hydrogen_ratio  # column density of D I [cm^-2]
@@ -149,8 +160,8 @@ def ism_profile(wavelength, log_h1_column_density, gas_temperature,
     nu_di = _lambda_to_nu(lambda_di)
 
     # Doppler b parameters
-    b_hi = np.sqrt(2 * k_B * gas_temperature / m_H + turbulence_velocity ** 2)
-    b_di = np.sqrt(2 * k_B * gas_temperature / m_D + turbulence_velocity ** 2)
+    b_hi = np.sqrt(2 * k_b * gas_temperature / m_hi + turbulence_velocity ** 2)
+    b_di = np.sqrt(2 * k_b * gas_temperature / m_di + turbulence_velocity ** 2)
     delta_nu_d_hi = nu_hi * b_hi / c
     delta_nu_d_di = nu_di * b_di / c
     a_hi = gamma / (4 * np.pi * delta_nu_d_hi)
