@@ -16,7 +16,8 @@ import numpy as np
 from scipy.integrate import simpson
 import os
 
-__all__ = ["integrate_flux", "read_fits", "generate_light_curve", "generate_hlsp"]
+__all__ = ["integrate_flux", "read_fits", "generate_light_curve",
+           "transit_phase_fold", "generate_hlsp"]
 
 
 # This function integrates the flux within a wavelength range for given arrays
@@ -401,6 +402,37 @@ def generate_light_curve(
         return time, flux, flux_error
     else:
         return time, flux, flux_error, gross, gross_error
+
+
+# Calculate transit phases for a light curve
+def transit_phase_fold(time, time_inferior_conjunction, period):
+    """
+
+    Parameters
+    ----------
+    time : ``numpy.ndarray``
+        Time stamps of the observation. Needs to be in the same unit as
+        ``time_inferior_conjunction``.
+
+    time_inferior_conjunction : ``float``
+        Transit time of inferior conjunction (transit midpoint). Needs to be in
+        the same unit as ``time``.
+
+    period : ``float``
+        Orbital period. Needs to be in the same unit as ``time``.
+
+    Returns
+    -------
+    phase : ``numpy.ndarray``
+        Transit phases centered at 0.0 (unitless).
+    """
+    # Phase fold
+    phase = ((time - time_inferior_conjunction) / period) % 1.0
+
+    # Center around 0
+    phase[phase > 0.5] -= 1.0
+
+    return phase
 
 
 # Create an HLSP file for a time series
