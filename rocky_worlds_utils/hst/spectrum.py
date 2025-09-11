@@ -13,6 +13,7 @@ from __future__ import division, print_function, absolute_import, unicode_litera
 import astropy.constants as c
 from astropy.io import fits
 import astropy.units as u
+from astropy.time import Time
 from functools import reduce
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,7 +30,8 @@ __all__ = [
     "read_hsla_product",
     "calculate_snr_hsla",
     "plot_lines_hsla",
-    "coadd_first_order"
+    "coadd_first_order",
+    "generate_hlsp"
 ]
 
 _KEY_LINE_IDS = [
@@ -414,3 +416,155 @@ def plot_lines_hsla(
                 ax[row, col].set_xlabel(r"Velocity [km s$^{-1}$]")
 
     return fig, ax
+
+
+# Generate a spectral HLSP
+def generate_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
+                  start_mjd, end_mjd, instrument, proposal_id, exposure_time,
+                  aperture, detector, grating, central_wavelength,
+                  model_wavelength=None, model_flux=None,
+                  model_flux_uncertainty=None, fp_pos=None,
+                  output_dir='.', filename=None, version="1.0"):
+    """
+    Generate a spectral high-level science product.
+
+    Parameters
+    ----------
+    wavelength : ``numpy.ndarray``
+    flux : ``numpy.ndarray``
+    flux_uncertainty : ``numpy.ndarray``
+    dq_flag : ``numpy.ndarray``
+    target_name : ``str``
+    start_mjd : ``float``
+    end_mjd : ``float``
+    instrument : ``str``
+    proposal_id : ``int``
+    exposure_time : ``float``
+    aperture : ``str``
+    detector : ``str``
+    grating : ``str`` or ``list``
+    central_wavelength : ``int``
+    model_wavelength : ``numpy.ndarray``, optional
+    model_flux : ``numpy.ndarray``, optional
+    model_flux_uncertainty : ``numpy.ndarray``, optional
+    fp_pos : ``int``, optional
+    output_dir : ``str``, optional
+    filename : ``str``, optional
+    version : ``str``, optional
+    """
+    start_time = Time(start_mjd, format="mjd")
+    end_time = Time(end_mjd, format="mjd")
+    elapsed_time = ((end_mjd - start_mjd) * u.d).to(u.s).value
+
+    # Instantiate primary HDU
+    hdu_0 = fits.PrimaryHDU()
+
+    # Set the common meta data
+    hdu_0.header["HLSPTYPE"] = ("Spectral", "HLSP Type")
+    hdu_0.header["DATE-BEG"] = (start_time.iso,
+        "ISO-8601 date-time start of the observation",
+    )
+    hdu_0.header["DATE-END"] = (end_time.iso,
+        "ISO-8601 date-time end of the observation",
+    )
+    hdu_0.header["DOI"] = ("10.17909/qsyr-ny68", "Digital Object Identifier")
+    hdu_0.header["HLSPID"] = ("ROCKY-WORLDS",
+                              "Identifier of this HLSP collection")
+    hdu_0.header["HLSP_PI"] = (
+        "Hannah Diamond-Lowe",
+        "Principal Investigator of this HLSP collection",
+    )
+    hdu_0.header["HLSPLEAD"] = ("Leonardo dos Santos",
+                                "Full name of HLSP project lead")
+    hdu_0.header["HLSPNAME"] = ("Rocky Worlds", "Title of this HLSP project")
+    hdu_0.header["HLSPTARG"] = (target_name, "Designation of the target")
+    hdu_0.header["HLSPVER"] = (version, "Data product version")
+    hdu_0.header["INSTRUME"] = (instrument,
+        "Instrument used for this observation",
+    )
+    hdu_0.header["LICENSE"] = ("CC BY 4.0", "License for use of these data")
+    hdu_0.header["LICENURL"] = (
+        "https://creativecommons.org/licenses/by/4.0/",
+        "Data license URL",
+    )
+    hdu_0.header["MJD-BEG"] = (start_mjd,
+                               "Start of the observation in MJD")
+    hdu_0.header["MJD-END"] = (end_mjd,
+                               "End of the observation in MJD")
+    hdu_0.header["MJD-MID"] = (
+        (start_mjd + end_mjd) / 2,
+        "Mid-time of the observation in MJD",
+    )
+    hdu_0.header["OBSERVAT"] = ("HST",
+                                "Observatory used to obtain this observation")
+    hdu_0.header["PROPOSID"] = (proposal_id,
+        "Observatory program/proposal identifier",
+    )
+    hdu_0.header["REFERENC"] = ("TBD", "Bibliographic identifier")
+    hdu_0.header["TELAPSE"] = (
+        elapsed_time,
+        "Time elapsed between start- and end-time of observation in seconds",
+    )
+    hdu_0.header["TELESCOP"] = ("HST", "Telescope used for this observation")
+    hdu_0.header["TIMESYS"] = ("UTC", "Time scale of time-related keywords")
+    hdu_0.header["XPOSURE"] = (
+        exposure_time,
+        "Duration of exposure in seconds, exclusive of dead time",
+    )
+
+    # Set the spectral meta data
+    hdu_1 = fits.BinTableHDU.from_columns(
+        [
+            fits.Column(name="WAVELENGTH", format="D", array=wavelength),
+            fits.Column(name="FLUX", format="D", array=flux),
+            fits.Column(name="FLUXERROR", format="D", array=flux_uncertainty),
+            fits.Column(name="DQ", format="D", array=dq_flag),
+        ]
+    )
+
+    hdu_1.header["DESCRIP"] = ("Observed spectrum", "Description of data")
+    hdu_1.header["SIMULATD"] = (False, "Simulated-data flag")
+    hdu_1.header["APERTURE"] = (aperture, "Aperture used for the exposure")
+    hdu_1.header["DETECTOR"] = (detector, "Detector used for the exposure")
+    if isinstance(grating, str):
+        hdu_1.header["GRATING"] = (grating, "Grating used for the exposure")
+    elif isinstance(grating, list):
+        n_elements = len(grating)
+        for i in range(n_elements):
+            hdu_1.header["GRATING%.2i" % i] = (grating[i],
+                                               "Grating used for the exposure")
+    hdu_1.header["CENWAVE"] = (central_wavelength,
+        "Central wavelength used for the exposure",
+    )
+    if fp_pos is not None:
+        hdu_1.header["FP-POS"] = (fp_pos, "FP-POS used for the exposure")
+
+    # Add a separate extension in case there is a model spectrum
+    if model_flux is not None:
+        hdu_2 = fits.BinTableHDU.from_columns(
+            [
+                fits.Column(name="WAVELENGTH", format="D",
+                            array=model_wavelength),
+                fits.Column(name="FLUX", format="D", array=model_flux),
+                fits.Column(name="FLUXERROR", format="D",
+                            array=model_flux_uncertainty),
+            ]
+        )
+        hdu_2.header["DESCRIP"] = ("Simulated spectrum", "Description of data")
+        hdu_2.header["SIMULATD"] = (True, "Simulated-data flag")
+        hdu_list = [hdu_0, hdu_1, hdu_2]
+    else:
+        hdu_list = [hdu_0, hdu_1]
+
+    if filename is None:
+        filename = "hlsp_rocky-worlds_hst_{}_{}_{}_v{}_spec.fits".format(
+            instrument.lower(),
+            target_name.lower(),
+            grating.lower(),
+            version,
+        )
+    else:
+        pass
+
+    hdul = fits.HDUList(hdu_list)
+    hdul.writeto(output_dir + filename)

@@ -481,7 +481,7 @@ def generate_hlsp(
         time_series_dict[0]["target"],
         "Designation of the target",
     )
-    hdu_0.header["HLSPVER"] = (1.0, "Data product version")
+    hdu_0.header["HLSPVER"] = (version, "Data product version")
     hdu_0.header["INSTRUME"] = (
         time_series_dict[0]["instrument"],
         "Instrument used for this observation",
