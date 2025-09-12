@@ -422,9 +422,10 @@ def plot_lines_hsla(
 def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
                        start_mjd, end_mjd, instrument, proposal_id,
                        exposure_time, aperture, detector, grating,
-                       central_wavelength, model_wavelength=None,
+                       central_wavelength, right_ascension, declination,
+                       coordinate_system='ICRS', model_wavelength=None,
                        model_flux=None, model_flux_uncertainty=None,
-                       fp_pos=None,output_dir='./', filename=None,
+                       fp_pos=None, output_dir='./', filename=None,
                        version="1.0"):
     """
     Generate a spectral high-level science product.
@@ -472,6 +473,15 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
 
     central_wavelength : ``int``
         Central wavelength used in the observation.
+
+    right_ascension : ``float``
+        Right ascension of the observed target in degrees.
+
+    declination : ``float``
+        Declination of the observed target in degrees.
+
+    coordinate_system : ``str``, optional
+        Coordinate system. Default is ``"ICRS"``.
 
     model_wavelength : ``numpy.ndarray``, optional
         Wavelength array of the model spectrum in units of Angstrom. If
@@ -573,6 +583,14 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
 
     hdu_1.header["DESCRIP"] = ("Observed spectrum", "Description of data")
     hdu_1.header["SIMULATD"] = (False, "Simulated-data flag")
+    hdu_1.header["RA_TARG"] = (right_ascension,
+                               "Right Ascension coordinate of the target")
+    hdu_1.header["DEC_TARG"] = (declination,
+                                "Declination coordinate of the target")
+    hdu_1.header["RADESYS"] = (
+        coordinate_system,
+        "Mnemonic for celestial coordinate reference system"
+    )
     hdu_1.header["APERTURE"] = (aperture, "Aperture used for the exposure")
     hdu_1.header["DETECTOR"] = (detector, "Detector used for the exposure")
     if isinstance(grating, str):
