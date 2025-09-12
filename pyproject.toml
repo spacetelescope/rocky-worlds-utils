@@ -13,13 +13,17 @@ requires-python = ">=3.11"
 dependencies = [
     "astropy>=7.0.1",
     "astroquery>=0.4.10",
+    "bokeh">=3.8.0,
     "calcos>=3.6.1",
     "costools>=1.2.6",
     "crds>=12.1.10",
+    "html5lib>=1.1",
     "matplotlib>=3.10.3",
+    "netcdf4>=1.7.2",
     "numpy>=2.2.4",
     "scipy>=1.15.2",
     "stistools>=1.4.5",
+    "xarray>=2025.9.0",
 ]
 
 dynamic = ["version"]
