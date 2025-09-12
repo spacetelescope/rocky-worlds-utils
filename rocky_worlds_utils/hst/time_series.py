@@ -16,7 +16,10 @@ import numpy as np
 from scipy.integrate import simpson
 import os
 
-__all__ = ["integrate_flux", "read_fits", "generate_light_curve", "generate_hlsp"]
+__all__ = ["integrate_flux",
+           "read_fits",
+           "generate_light_curve",
+           "generate_lc_hlsp"]
 
 
 # This function integrates the flux within a wavelength range for given arrays
@@ -404,7 +407,7 @@ def generate_light_curve(
 
 
 # Create an HLSP file for a time series
-def generate_hlsp(
+def generate_lc_hlsp(
     dataset, prefix, output_dir, filename=None, wavelength_range=None, version="1.0"
 ):
     """

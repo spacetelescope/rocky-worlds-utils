@@ -31,7 +31,7 @@ __all__ = [
     "calculate_snr_hsla",
     "plot_lines_hsla",
     "coadd_first_order",
-    "generate_hlsp"
+    "generate_spec_hlsp"
 ]
 
 _KEY_LINE_IDS = [
@@ -419,38 +419,87 @@ def plot_lines_hsla(
 
 
 # Generate a spectral HLSP
-def generate_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
-                  start_mjd, end_mjd, instrument, proposal_id, exposure_time,
-                  aperture, detector, grating, central_wavelength,
-                  model_wavelength=None, model_flux=None,
-                  model_flux_uncertainty=None, fp_pos=None,
-                  output_dir='.', filename=None, version="1.0"):
+def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
+                       start_mjd, end_mjd, instrument, proposal_id,
+                       exposure_time, aperture, detector, grating,
+                       central_wavelength, model_wavelength=None,
+                       model_flux=None, model_flux_uncertainty=None,
+                       fp_pos=None,output_dir='./', filename=None,
+                       version="1.0"):
     """
     Generate a spectral high-level science product.
 
     Parameters
     ----------
     wavelength : ``numpy.ndarray``
+        Wavelength array in units of Angstrom.
+
     flux : ``numpy.ndarray``
+        Flux array in units of erg/s/cm^2/Angstrom.
+
     flux_uncertainty : ``numpy.ndarray``
+        Flux uncertainty array in units of erg/s/cm^2/Angstrom.
+
     dq_flag : ``numpy.ndarray``
+        Data quality flags array.
+
     target_name : ``str``
+        Target name.
+
     start_mjd : ``float``
+        Observation start time in modified Julian date.
+
     end_mjd : ``float``
+        Observation end time in modified Julian date.
+
     instrument : ``str``
+        Instrument name.
+
     proposal_id : ``int``
+        Proposal ID number.
+
     exposure_time : ``float``
+        Effective exposure time (subtracted of dead time) in seconds.
+
     aperture : ``str``
+        Name of the aperture element used in the observation.
+
     detector : ``str``
+        Name of the detector used in the observation.
+
     grating : ``str`` or ``list``
+        Name of the grating used in the observation.
+
     central_wavelength : ``int``
+        Central wavelength used in the observation.
+
     model_wavelength : ``numpy.ndarray``, optional
+        Wavelength array of the model spectrum in units of Angstrom. If
+        ``None``, then no model spectrum is included in the HLSP file. Default
+        is ``None``.
+
     model_flux : ``numpy.ndarray``, optional
+        Flux array of the model spectrum in units of Angstrom. If ``None``, then
+        no model spectrum is included in the HLSP file. Default is ``None``.
+
     model_flux_uncertainty : ``numpy.ndarray``, optional
+        Flux uncertainty array of the model spectrum in units of Angstrom. If
+        ``None``, then no model spectrum is included in the HLSP file. Default
+        is ``None``.
+
     fp_pos : ``int``, optional
+        FP-POS of the observation. Only relevant for COS. Default is ``None``.
+
     output_dir : ``str``, optional
+        Path to output directory. Default is the current directory.
+
     filename : ``str``, optional
+        Output filename. If ``None``, then the output filename will be
+        ``[dataset]_hslp.fits``. Default is ``None``.
+
     version : ``str``, optional
+        Version of this HLSP, must have a {major}.{minor} format and it must be
+        a string. Default is ``'1.0'``.
     """
     start_time = Time(start_mjd, format="mjd")
     end_time = Time(end_mjd, format="mjd")
