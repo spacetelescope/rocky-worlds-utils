@@ -423,6 +423,7 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
                        start_mjd, end_mjd, instrument, proposal_id,
                        exposure_time, aperture, detector, grating,
                        central_wavelength, right_ascension, declination,
+                       cal_version, pipeline, pipeline_version, source_doi,
                        coordinate_system='ICRS', model_wavelength=None,
                        model_flux=None, model_flux_uncertainty=None,
                        fp_pos=None, output_dir='./', filename=None,
@@ -541,9 +542,9 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
     hdu_0.header["INSTRUME"] = (instrument,
         "Instrument used for this observation",
     )
+    hdu_0.header["CAL_VER"] = (cal_version, "HST Calibration Software Version")
     hdu_0.header["PIPELINE"] = (pipeline, "Pipeline used to reduce the HLSP data")
     hdu_0.header["PIPE_VER"] = (pipeline_version, "Pipeline version used to reduce the HLSP data")
-    hdu_0.header["UTILS_VER"] = (utils_version, "Version of rocky-worlds-utils code")
     hdu_0.header["LICENSE"] = ("CC BY 4.0", "License for use of these data")
     hdu_0.header["LICENURL"] = (
         "https://creativecommons.org/licenses/by/4.0/",
@@ -562,7 +563,7 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
     hdu_0.header["PROPOSID"] = (proposal_id,
         "Observatory program/proposal identifier",
     )
-    hdu_0.header["REFERENC"] = ("TBD", "Bibliographic identifier")
+    # hdu_0.header["REFERENC"] = ("TBD", "Bibliographic identifier")
     hdu_0.header["TELAPSE"] = (
         elapsed_time,
         "Time elapsed between start- and end-time of observation in seconds",
@@ -585,6 +586,7 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
     )
 
     hdu_1.header["DESCRIP"] = ("Observed spectrum", "Description of data")
+    hdu_1.header["SRC_DOI"] = (source_doi, "DOI for the source data taken from MAST")
     hdu_1.header["SIMULATD"] = (False, "Simulated-data flag")
     hdu_1.header["RA_TARG"] = (right_ascension,
                                "Right Ascension coordinate of the target")
