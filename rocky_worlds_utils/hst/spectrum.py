@@ -535,7 +535,7 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
     )
     hdu_0.header["HLSPLEAD"] = ("Leonardo dos Santos",
                                 "Full name of HLSP project lead")
-    hdu_0.header["HLSPNAME"] = ("Rocky Worlds", "Title of this HLSP project")
+    hdu_0.header["HLSPNAME"] = ("Rocky Worlds DDT", "Title of this HLSP project")
     hdu_0.header["HLSPTARG"] = (target_name, "Designation of the target")
     hdu_0.header["HLSPVER"] = (version, "Data product version")
     hdu_0.header["INSTRUME"] = (instrument,

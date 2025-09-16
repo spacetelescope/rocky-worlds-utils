@@ -479,7 +479,7 @@ def generate_lc_hlsp(
         "Principal Investigator of this HLSP collection",
     )
     hdu_0.header["HLSPLEAD"] = ("Leonardo dos Santos", "Full name of HLSP project lead")
-    hdu_0.header["HLSPNAME"] = ("Rocky Worlds", "Title of this HLSP project")
+    hdu_0.header["HLSPNAME"] = ("Rocky Worlds DDT", "Title of this HLSP project")
     hdu_0.header["HLSPTARG"] = (
         time_series_dict[0]["target"],
         "Designation of the target",
