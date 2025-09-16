@@ -541,6 +541,9 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
     hdu_0.header["INSTRUME"] = (instrument,
         "Instrument used for this observation",
     )
+    hdu_0.header["PIPELINE"] = (pipeline, "Pipeline used to reduce the HLSP data")
+    hdu_0.header["PIPE_VER"] = (pipeline_version, "Pipeline version used to reduce the HLSP data")
+    hdu_0.header["UTILS_VER"] = (utils_version, "Version of rocky-worlds-utils code")
     hdu_0.header["LICENSE"] = ("CC BY 4.0", "License for use of these data")
     hdu_0.header["LICENURL"] = (
         "https://creativecommons.org/licenses/by/4.0/",
