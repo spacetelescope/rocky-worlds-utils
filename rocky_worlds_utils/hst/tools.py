@@ -12,6 +12,7 @@ from astropy.io import fits
 from astroquery.mast import Observations
 from crds import assign_bestrefs
 import glob
+import os
 import numpy as np
 
 
@@ -39,7 +40,9 @@ def obs_mode_check(datasets, prefix):
     optical_element = []
     central_wavelength = []
     for dataset in datasets:
-        header = fits.getheader(prefix + dataset + "_x1d.fits")
+        filename = dataset + "_x1d.fits"
+        full_file_path = os.path.join(prefix, filename)
+        header = fits.getheader(full_file_path)
         instrument.append(header['INSTRUME'])
         optical_element.append(header['OPT_ELEM'])
         central_wavelength.append(header['CENWAVE'])
@@ -109,7 +112,7 @@ def get_observations(dataset, save_path, download_references=False):
     mast_products = Observations.get_product_list(data_query)
 
     # Download the data
-    Observations.download_products(mast_products, download_dir=str(save_path),
+    Observations.download_products(mast_products, download_dir=save_path,
                                    project=["CALSTIS", "CALCOS"], flat=True)
 
     if download_references:
