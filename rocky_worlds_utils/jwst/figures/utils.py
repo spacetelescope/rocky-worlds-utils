@@ -92,7 +92,7 @@ class eclipseDepthTable:
             "star": data.STAR,
             "telescope": data.TELESCOP,
             "instrument": data.INSTRUME,
-            "filter": data.FILTER,
+            "filter": data.filter.data[0],
             "propid": data.PROPOSID,
             "ra": data.RA_TARG,
             "dec": data.DEC_TARG,

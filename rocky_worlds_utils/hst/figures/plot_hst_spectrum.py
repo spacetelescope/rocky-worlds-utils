@@ -14,6 +14,7 @@ from bokeh.models import (
     ColumnDataSource,
 )
 from bokeh.plotting import figure, show
+from bokeh.models import Whisker
 from pathlib import Path
 
 from rocky_worlds_utils.figure_utils.write_figure import write_figure
@@ -40,9 +41,11 @@ class rockyWorldsSpectrum:
         self.hdu = fits.open(self.filename)
         self.wavelength = self.hdu[1].data["WAVELENGTH"].flatten()
         self.flux = self.hdu[1].data["FLUX"].flatten()
-        self.error = self.hdu[1].data["ERROR"].flatten()
+        self.error = self.hdu[1].data["FLUXERROR"].flatten()
+        self.model_wavelength = self.hdu[2].data["WAVELENGTH"].flatten()
+        self.model_flux = self.hdu[2].data["FLUX"].flatten()
 
-        self.targetname = self.hdu[0].header["TARGNAME"]
+        self.targetname = self.hdu[0].header["HLSPTARG"]
 
         self.plot_height = plot_height
         self.plot_width = plot_width
@@ -62,18 +65,25 @@ class rockyWorldsSpectrum:
                 wavelength=self.wavelength,
                 flux=self.flux,
                 error=self.error,
+                upp_err=self.flux + self.error,
+                lwr_err=self.flux - self.error,
             )
         )
+
+        tooltips = [
+            ("Wavelength", "@wavelength{0.000}"),
+            ("Flux", "@flux"),
+            ("Flux Error +/-", "@error"),
+        ]
 
         p = figure(
             width=self.plot_width,
             height=self.plot_height,
-            tooltips=[
-                ("wavelength", "@wavelength{0.000}"),
-                ("Flux", "@flux"),
-                ("Flux Error", "@error"),
-            ],
+            tooltips=tooltips,
         )
+
+        p.x_range.start = min(self.wavelength) - 2
+        p.x_range.end = max(self.wavelength) + 2
 
         p.axis.axis_label_text_font_style = "bold"
 
@@ -91,15 +101,44 @@ class rockyWorldsSpectrum:
         p.title.text_font_size = "25pt"
 
         p.line(
+            self.model_wavelength,
+            self.model_flux,
+            color="red",
+            line_width=2,
+            legend_label="Lyman α Model",
+        )
+
+        scatter = p.scatter(
             x="wavelength",
             y="flux",
             source=source,
             color="black",
-            line_width=2,
+            alpha=0.25,
+            size=5,
+            legend_label="Flux",
         )
 
+        p.hover.renderers = [scatter]
+
+        error = Whisker(
+            base="wavelength",
+            upper="upp_err",
+            lower="lwr_err",
+            source=source,
+            level="annotation",
+            line_width=1,
+            line_alpha=0.25,
+        )
+
+        error.upper_head.size = 20
+        error.lower_head.size = 20
+        error.upper_head.line_alpha = 0.3
+        error.lower_head.line_alpha = 0.3
+
+        p.add_layout(error)
+
         if figure_out_path:
-            filename = f"{self.targetname}_spectrum_ql.html"
+            filename = self.filename.name.replace("fits", "html")
             full_file_path = Path(figure_out_path) / filename
             write_figure(p, full_file_path)
         else:

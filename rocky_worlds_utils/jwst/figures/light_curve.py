@@ -68,7 +68,7 @@ class rockyWorldsLightCurve:
         self.planet_name = self.data.PLANET
         self.telescope = self.data.TELESCOP
         self.instrument = self.data.INSTRUME
-        self.filter = self.data.FILTER
+        self.filter = self.data.filter.data[0]
         self.propid = self.data.PROPOSID
 
     def build_time_bin_slider(self, start, end, step):
