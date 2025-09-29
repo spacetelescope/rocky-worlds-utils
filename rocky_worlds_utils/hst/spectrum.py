@@ -50,7 +50,7 @@ _C_SPEED = c.c.to(u.km / u.s).value
 
 
 # Co-adds spectra
-def coadd_first_order(datasets, prefix='./',
+def coadd_first_order(datasets, prefix='./', radial_velocity_corrections=None,
                       acceptable_dq_flags=(0, 64, 128, 1024, 2048),
                       weight='sensitivity'):
     """
@@ -71,8 +71,13 @@ def coadd_first_order(datasets, prefix='./',
         List of dataset names containing the spectra to be co-added. They must
         all have been observed in the same mode.
 
-    prefix : ``str``
-        Location of x1d files to be co-added.
+    prefix : ``str``, optional
+        Location of x1d files to be co-added. Default is the current folder.
+
+    radial_velocity_corrections : ``list``, optional
+        List of radial velocity corrections to be applied to each dataset in
+        addition, in unit of km / s. Must have the same length as ``datasets``.
+        Default is ``None`` (no correction).
 
     acceptable_dq_flags : array-like, optional
         Data-quality flags that are acceptable when co-adding overlapping
@@ -110,8 +115,9 @@ def coadd_first_order(datasets, prefix='./',
         central_wavelength.append(header['CENWAVE'])
 
     spectra = []
-    for dataset in datasets:
+    for i, dataset in enumerate(datasets):
         data = fits.getdata(prefix + dataset + '_x1d.fits')
+
         spectrum = {
             'wavelength' : data['WAVELENGTH'][0],
             'flux' : data['FLUX'][0],
@@ -120,6 +126,13 @@ def coadd_first_order(datasets, prefix='./',
             'net' : data['NET'][0],
             'gross' : data['GROSS'][0]
         }
+
+        # If radial_velocity_corrections are passed, apply them
+        if radial_velocity_corrections is not None:
+            wavelength_shift = (radial_velocity_corrections[i]  /
+                                _C_SPEED * spectrum['wavelength'])
+            spectrum['wavelength'] += wavelength_shift
+
         spectra.append(spectrum)
 
     # First we need to determine which spectrum has a higher sensitivity
