@@ -20,14 +20,15 @@ from jwst_gtvt.jwst_tvt import Ephemeris
 from jwst_gtvt.display_results import get_visibility_windows
 
 RWDDT_TARGETS = [
-    ("GJ 3929", ("239.57833", "35.40675")),
-    ("HD 260655", ("99.308", "18.727")),
-    ("LHS 1140", ("11.247", "-15.271")),
-    ("LTT 1445 A", ("45.46250", "-16.59334")),
-    ("TOI-198", ("2.2715", "27.1217")),
-    ("TOI-244", ("10.57058", "-36.71817")),
-    ("TOI-406", ("49.2626", "-42.2441")),
-    ("TOI-771", ("164.1138", "-72.98517")),
+    ("GJ 3929 b", ("239.57833", "35.40675")),
+    ("LTT 1445 A c", ("45.46250", "-16.59334")),
+    ("LHS 1140 b", ("11.247", "-15.271")),
+    ("LTT 1445 A b", ("45.46250", "-16.59334")),
+    ("TOI-198 b", ("2.2715", "27.1217")),
+    ("TOI-406 c", ("49.2626", "-42.2441")),
+    ("TOI-771 b", ("164.1138", "-72.98517")),
+    ("HD 260655 c", ("99.308", "18.727")),
+    ("TOI-244 b", ("10.57058", "-36.71817")),
 ]
 
 
@@ -100,7 +101,7 @@ def build_visibility_window_dataset(
     # Write data set of just display it to screen
     if outfile_path:
         # Set run date by day, visibility won't change at smaller than day scales.
-        now = datetime.now().strftime('%Y-%m-%d')
+        now = datetime.now().strftime("%Y-%m-%d")
         filename = f"jwst_visibility_{start_date.strftime('%Y-%m-%d')}_to_{end_date.strftime('%Y-%m-%d')}_run_date_{now}.csv"
         outfile_full_path = os.path.join(outfile_path, filename)
         combined_window_df.to_csv(outfile_full_path, index=False)
@@ -119,7 +120,7 @@ class rwddtJwstTargetVisibilityWindows:
         """
         self.filename = os.path.basename(vis_window_data)
         self.vis_window_df = pd.read_csv(vis_window_data, index_col=False)
-        self.unique_targets = sorted(self.vis_window_df["Target"].unique())
+        self.unique_targets = self.vis_window_df["Target"].unique()
         self.generate_color_map()
 
         self.colors_primary = {
