@@ -161,16 +161,13 @@ class rwddtJwstTargetVisibilityWindows:
             [1.0, "#272f4f"],  # Scarlet
         ]
 
-        # targets in the dataset (preserve ordering you want)
-        unique_targets = sorted(self.vis_window_df["Target"].unique())
-
         # sample evenly across the colorscale
-        vals = np.linspace(0.0, 1.0, len(unique_targets))
+        vals = np.linspace(0.0, 1.0, len(self.unique_targets))
         sampled_rgb = [pc.sample_colorscale(rockyworlds_colorscale, v)[0] for v in vals]
         sampled_hex = [_rgb_to_hex(s) for s in sampled_rgb]
 
         # build map target -> hex color
-        self.target_color_map = dict(zip(unique_targets, sampled_hex))
+        self.target_color_map = dict(zip(self.unique_targets, sampled_hex))
 
     def plot_visibility_windows(self, outfile_path=None):
         """Generate visibility plot with plotly
