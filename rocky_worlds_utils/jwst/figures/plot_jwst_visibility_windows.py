@@ -109,7 +109,7 @@ def build_visibility_window_dataset(
         print(combined_window_df)
 
 
-class rwddtJwstTargetVisibilityWindows:
+class RwddtJwstTargetVisibilityWindows:
     def __init__(self, vis_window_data):
         """Build the colormap and figure displayed on RWDDT website.
 
@@ -186,7 +186,7 @@ class rwddtJwstTargetVisibilityWindows:
             y="Target",
             color="Target",
             color_discrete_map=self.target_color_map,
-            title="JWST Visibility Windows — Rocky Worlds (Demo)",
+            title="JWST Visibility Windows — Rocky Worlds",
             height=600,
         )
 
