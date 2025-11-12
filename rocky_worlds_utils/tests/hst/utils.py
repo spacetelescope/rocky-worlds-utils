@@ -9,9 +9,6 @@ from astroquery.mast import MastMissions
 from crds import assign_bestrefs
 import glob
 
-from astropy.io import fits
-import numpy as np
-
 
 def assign_reffiles(files, task_verbosity=0):
     """Assign and download reference files
