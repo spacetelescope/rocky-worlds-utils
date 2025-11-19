@@ -408,10 +408,13 @@ def generate_light_curve(
 
 # Create an HLSP file for a time series
 def generate_lc_hlsp(
-    dataset, prefix, output_dir, filename=None, wavelength_range=None, version="1.0"
+    dataset, prefix, output_dir='./', filename=None, wavelength_ranges=None,
+        feature_names=None, version="1.0"
 ):
     """
-    Generate a high-level spectral product for a time-series observation.
+    Generate a high-level spectral product for a time-series observation. The
+    fits file will contain one data extension per wavelength range passed to
+    this function.
 
     Parameters
     ----------
@@ -427,17 +430,28 @@ def generate_lc_hlsp(
 
     filename : ``str``, optional
         Output filename. If ``None``, then the output filename will be
-        ``[dataset]_hslp.fits``. Default is ``None``.
+        ``hlsp_rocky-worlds_hst_[instrument]_[target]_[grating]_v[version]_lc.fits``.
+        Default is ``None``.
 
-    wavelength_range : array-like, optional
-        List, array or tuple of two floats containing the start and end of the
-        wavelength range to be integrated. If ``None``, the entire wavelength
-        range available in the spectrum will be integrated. Default is ``None``.
+    wavelength_ranges : ``numpy.ndarray``, optional
+        Array containing the start and end of the wavelength range(s) to be
+        integrated. Can be passed as a two-dimensional array containing more
+        than one range, in which case the shape must be (2, N). If ``None``, the
+        entire wavelength range available in the spectrum will be integrated.
+        Default is ``None``.
+
+    feature_names : ``str`` or ``list``, optional
+        Name or list of names of the spectroscopic features corresponding to
+        each of the wavelength ranges passed in ``wavelength_ranges``. Default
+        is ``None``.
 
     version : ``str``, optional
         Version of this HLSP, must have a {major}.{minor} format and it must be
         a string. Default is ``'1.0'``.
     """
+    if isinstance(feature_names, str):
+        feature_names = [feature_names, ]
+
     if isinstance(dataset, str):
         time_series_dict = [
             read_fits(dataset, prefix),
@@ -447,18 +461,16 @@ def generate_lc_hlsp(
     else:
         raise TypeError("Dataset must be a string or a list.")
 
-    # Calculate light curve
-    time_array, flux_array, error_array, gross_array, gross_error_array = (
-        generate_light_curve(
-            dataset, prefix, wavelength_range, return_integrated_gross=True
-        )
-    )
+    # First, we deal with the Primary extension material
 
     # Compile lists of meta data
     exp_start_list = np.array([d["exp_start"] for d in time_series_dict])[0]
     exp_end_list = np.array([d["exp_end"] for d in time_series_dict])[0]
     elapsed_time = ((max(exp_end_list) - min(exp_start_list)) * u.d).to(u.s).value
     exposure_time = np.sum(np.array([d["exp_time"] for d in time_series_dict]))
+
+    # Instantiate the list of HDUs that will be included in the fits file
+    hdu_list = []
 
     hdu_0 = fits.PrimaryHDU()
 
@@ -489,6 +501,9 @@ def generate_lc_hlsp(
         time_series_dict[0]["instrument"],
         "Instrument used for this observation",
     )
+    hdu_0.header["CAL_VER"] = (cal_version, "HST Calibration Software Version")
+    hdu_0.header["PIPELINE"] = (pipeline, "Pipeline used to reduce the HLSP data")
+    hdu_0.header["PIPE_VER"] = (pipeline_version, "Pipeline version used to reduce the HLSP data")
     hdu_0.header["LICENSE"] = ("CC BY 4.0", "License for use of these data")
     hdu_0.header["LICENURL"] = (
         "https://creativecommons.org/licenses/by/4.0/",
@@ -517,46 +532,82 @@ def generate_lc_hlsp(
         "Duration of exposure in seconds, exclusive of dead time",
     )
 
-    # Set the light curve meta data
-    hdu_1 = fits.BinTableHDU.from_columns(
-        [
-            fits.Column(name="TIME", format="D", array=time_array),
-            fits.Column(name="FLUX", format="D", array=flux_array),
-            fits.Column(name="FLUXERROR", format="D", array=error_array),
-            fits.Column(name="COUNTS", format="D", array=gross_array),
-            fits.Column(name="COUNTSERROR", format="D", array=gross_error_array),
-        ]
-    )
-    hdu_1.header["APERTURE"] = (
-        time_series_dict[0]["aperture"],
-        "Aperture used for the exposure",
-    )
-    hdu_1.header["DEC_TARG"] = (
-        time_series_dict[0]["dec"],
-        "Declination coordinate of the target in deg",
-    )
-    hdu_1.header["DETECTOR"] = (
-        time_series_dict[0]["detector"],
-        "Detector used for exposure",
-    )
-    hdu_1.header["GRATING"] = (
-        time_series_dict[0]["grating"],
-        "Grating used for the exposure",
-    )
-    hdu_1.header["CENWAVE"] = (
-        time_series_dict[0]["cenwave"],
-        "Central wavelength used for the exposure",
-    )
-    hdu_1.header["FP-POS"] = (
-        time_series_dict[0]["fppos"],
-        "FP-POS used for the exposure",
-    )
-    hdu_1.header["RADESYS"] = ("ICRS", "Celestial coordinate reference system")
-    hdu_1.header["RA_TARG"] = (
-        time_series_dict[0]["ra"],
-        "Right Ascension coordinate of the target in deg",
-    )
+    # Add the Primary HDU to the list
+    hdu_list.append(hdu_0)
 
+    # Now we deal with the light curves
+    # Figure out whether there is only one or more wavelength ranges
+    array_shape = np.shape(wavelength_ranges)
+    n_ranges = len(array_shape)
+
+    # Now calculate the light curve for each wavelength range
+    for i in range(n_ranges):
+        wavelength_range = wavelength_ranges[i]
+
+        # Calculate light curve
+        time_array, flux_array, error_array, gross_array, gross_error_array = (
+            generate_light_curve(
+                dataset, prefix, wavelength_range, return_integrated_gross=True
+            )
+        )
+
+        # Set the light curve meta data
+        hdu_1 = fits.BinTableHDU.from_columns(
+            [
+                fits.Column(name="TIME", format="D", array=time_array),
+                fits.Column(name="FLUX", format="D", array=flux_array),
+                fits.Column(name="FLUXERROR", format="D", array=error_array),
+                fits.Column(name="COUNTS", format="D", array=gross_array),
+                fits.Column(name="COUNTSERROR", format="D",
+                            array=gross_error_array),
+            ]
+        )
+        if feature_names is not None:
+            hdu_1.header["DESCRIP"] = (feature_names[i] + " light curve",
+                                       "Description of data")
+        else:
+            hdu_1.header["DESCRIP"] = ("Light curve", "Description of data")
+
+        hdu_1.header["SRC_DOI"] = (source_doi,
+                                   "DOI for the source data taken from MAST")
+        hdu_1.header["WAVE_RANGE"] = (
+            (wavelength_range[0], wavelength_range[1]),
+            "Wavelength integration range",
+        )
+        hdu_1.header["APERTURE"] = (
+            time_series_dict[0]["aperture"],
+            "Aperture used for the exposure",
+        )
+        hdu_1.header["DEC_TARG"] = (
+            time_series_dict[0]["dec"],
+            "Declination coordinate of the target in deg",
+        )
+        hdu_1.header["DETECTOR"] = (
+            time_series_dict[0]["detector"],
+            "Detector used for exposure",
+        )
+        hdu_1.header["GRATING"] = (
+            time_series_dict[0]["grating"],
+            "Grating used for the exposure",
+        )
+        hdu_1.header["CENWAVE"] = (
+            time_series_dict[0]["cenwave"],
+            "Central wavelength used for the exposure",
+        )
+        hdu_1.header["FP-POS"] = (
+            time_series_dict[0]["fppos"],
+            "FP-POS used for the exposure",
+        )
+        hdu_1.header["RADESYS"] = ("ICRS", "Celestial coordinate reference system")
+        hdu_1.header["RA_TARG"] = (
+            time_series_dict[0]["ra"],
+            "Right Ascension coordinate of the target in deg",
+        )
+
+        # Add the data HDU to the list
+        hdu_list.append(hdu_1)
+
+    # Finally create the corresponding FITS file
     if filename is None:
         filename = "hlsp_rocky-worlds_hst_{}_{}_{}_v{}_lc.fits".format(
             time_series_dict[0]["instrument"].lower(),
@@ -567,6 +618,5 @@ def generate_lc_hlsp(
     else:
         pass
 
-    hdu_list = [hdu_0, hdu_1]
     hdul = fits.HDUList(hdu_list)
     hdul.writeto(output_dir + filename)
