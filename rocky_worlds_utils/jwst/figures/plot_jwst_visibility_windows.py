@@ -11,13 +11,15 @@ from datetime import datetime, timedelta
 import os
 
 from astropy.time import Time
+from bokeh.models import ColumnDataSource, HoverTool
+from bokeh.plotting import figure, show
 import numpy as np
 import pandas as pd
-import plotly.colors as pc
-import plotly.express as px
 
 from jwst_gtvt.jwst_tvt import Ephemeris
 from jwst_gtvt.display_results import get_visibility_windows
+
+from rocky_worlds_utils.figure_utils.write_figure import write_figure
 
 RWDDT_TARGETS = [
     ("GJ 3929 b", ("239.57833", "35.40675")),
@@ -120,56 +122,32 @@ class RwddtJwstTargetVisibilityWindows:
         """
         self.filename = os.path.basename(vis_window_data)
         self.vis_window_df = pd.read_csv(vis_window_data, index_col=False)
-        self.unique_targets = self.vis_window_df["Target"].unique()
-        self.generate_color_map()
+        self.unique_targets = np.flip(self.vis_window_df["Target"].unique())
 
-        self.colors_primary = {
-            "Cerulean": "#29a6df",
-            "Scarlet": "#d12717",
-            "Nightlife": "#272f4f",
+        self.vis_window_df["Start"] = pd.to_datetime(self.vis_window_df["Start"])
+        self.vis_window_df["End"] = pd.to_datetime(self.vis_window_df["End"])
+
+        self.assign_color_palette()
+
+    def assign_color_palette(self):
+        """Create column for dataframe."""
+        color_pallete = {
+            "GJ 3929 b": "#d12717",
+            "LTT 1445 A c": "#a74749",
+            "LHS 1140 b": "#7d667b",
+            "LTT 1445 A b": "#5386ad",
+            "TOI-198 b": "#29a6df",
+            "TOI-406 c": "#2988bb",
+            "TOI-771 b": "#286a97",
+            "HD 260655 c": "#284d73",
+            "TOI-244 b": "#272f4f",
         }
-        self.colors_auxiliary = {
-            "Oasis": "#286d97",
-            "Starry Night": "#2b3e60",
-            "Vermillion": "#dc4014",
-            "Snow": "#f8f7f7",
-            "Zinc": "#8d898c",
-        }
-        self.font_title = dict(
-            family="Quicksilver, Arial",
-            color=self.colors_primary["Nightlife"],
-            size=30,
-            weight="bold",
-        )
 
-    def generate_color_map(self):
-        """Generate Rocky Worlds DDT color map for visiblity plot"""
-
-        def _rgb_to_hex(rgb_str):
-            """Convert 'rgb(R, G, B)' or 'rgba(R, G, B, A)' to '#rrggbb'."""
-            s = rgb_str.strip()
-            if s.startswith("rgb"):
-                nums = s[s.find("(") + 1 : s.find(")")].split(",")
-                r, g, b = [int(float(x)) for x in nums[:3]]
-                return "#{:02x}{:02x}{:02x}".format(r, g, b)
-            return s  # assume it's already hex
-
-        # Rocky Worlds sequential colorscale (positions)
-        rockyworlds_colorscale = [
-            [0.0, "#d12717"],  # Nightlife
-            [0.5, "#29a6df"],  # Cerulean
-            [1.0, "#272f4f"],  # Scarlet
+        self.vis_window_df["Color"] = [
+            color_pallete[target] for target in self.vis_window_df["Target"]
         ]
 
-        # sample evenly across the colorscale
-        vals = np.linspace(0.0, 1.0, len(self.unique_targets))
-        sampled_rgb = [pc.sample_colorscale(rockyworlds_colorscale, v)[0] for v in vals]
-        sampled_hex = [_rgb_to_hex(s) for s in sampled_rgb]
-
-        # build map target -> hex color
-        self.target_color_map = dict(zip(self.unique_targets, sampled_hex))
-
-    def plot_visibility_windows(self, outfile_path=None):
+    def plot_visibility_windows(self, outfile_path):
         """Generate visibility plot with plotly
 
         Parameters
@@ -179,42 +157,64 @@ class RwddtJwstTargetVisibilityWindows:
             with .html instead of .csv extension. If not provided, figure displays
             in default web browser.
         """
-        fig_gantt = px.timeline(
-            self.vis_window_df,
-            x_start="Start",
-            x_end="End",
+        source = ColumnDataSource(self.vis_window_df)
+
+        p = figure(
+            width=1650,
+            height=900,
+            x_axis_type="datetime",
+            y_range=self.unique_targets,
+            title="JWST Visibility Windows -- Rocky Worlds",
+            tools="box_zoom,reset",
+        )
+
+        p.hbar(
             y="Target",
-            color="Target",
-            color_discrete_map=self.target_color_map,
-            title="JWST Visibility Windows — Rocky Worlds",
-            height=600,
+            left="Start",
+            right="End",
+            line_color="Color",
+            fill_color="Color",
+            height=0.75,
+            source=source,
         )
 
-        fig_gantt.update_layout(
-            plot_bgcolor="#e2e1e1",  # colors_auxiliary["Snow"],  # Snow
-            paper_bgcolor=self.colors_auxiliary["Snow"],
-            title_font=self.font_title,  # dict(family="Quicksilver, Arial", size=20),
-            font=dict(family="Montserrat, Arial", size=20),
-            hoverlabel=dict(
-                font=dict(
-                    family="Montserrat, Arial",
-                    size=20,
-                )
-            ),
-            legend_title_text="",  # optional: cleaner legend
-            margin=dict(t=80, b=60, l=160, r=40),
-            xaxis_title="Visibility Windows",
-            yaxis_title="Targets",
+        hover_tooltips = """
+                        <div style="font-size: 16pt; font-family:Montserrat;">
+                            <b>Target:</b> @Target <br>
+                            <b>Start Date:</b> @Start{%Y-%m-%d} <br>
+                            <b>End Date:</b> @End{%Y-%m-%d}
+                        </div>
+                    """
+
+        p.add_tools(
+            HoverTool(
+                tooltips=hover_tooltips,
+                formatters={"@Start": "datetime", "@End": "datetime"},
+            )
         )
 
-        # Make sure y ordering is sensible (optional)
-        fig_gantt.update_yaxes(
-            categoryorder="array", categoryarray=self.unique_targets[::-1]
-        )  # reversed for top-first
+        # Plot title.
+        p.title.text_font_size = "30pt"
+
+        # x axis settings
+        p.xaxis.axis_label = "Visibility Windows"
+        p.xaxis.axis_label_text_font_size = "25pt"
+        p.xaxis.axis_label_text_font_style = "bold"
+        p.xaxis.major_label_text_font_size = "15pt"
+        p.xaxis.major_label_text_font_style = "bold"
+
+        # y axis settings
+        p.yaxis.axis_label = "Targets"
+        p.yaxis.axis_label_text_font_size = "25pt"
+        p.yaxis.axis_label_text_font_style = "bold"
+        p.yaxis.major_label_text_font_size = "15pt"
+        p.yaxis.major_label_text_font_style = "bold"
+        p.y_range.range_padding = 0.1
+        p.ygrid.grid_line_color = None
 
         if outfile_path:
-            outfile_name = self.filename.replace(".csv", ".html")
-            outfile_full_path = os.path.join(outfile_path, outfile_name)
-            fig_gantt.write_html(outfile_full_path)
+            filename = self.filename.replace(".csv", ".html")
+            abs_file_path = os.path.join(outfile_path, filename)
+            write_figure(p, abs_file_path)
         else:
-            fig_gantt.show()
+            show(p)
