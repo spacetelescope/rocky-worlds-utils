@@ -17,7 +17,6 @@ from jinja2 import Template
 
 def write_figure(bokeh_figure, outfile):
     """Write out bokeh figures using template that will match to our website.
-
     Parameters
     ----------
     bokeh_figure: bokeh.plotting.figure
