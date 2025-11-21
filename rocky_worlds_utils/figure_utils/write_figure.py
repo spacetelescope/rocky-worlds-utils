@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Bokeh templating module.
+
 Authors
 -------
 - Mees Fix <<mfix@stsci.edu>>

@@ -148,7 +148,7 @@ class RwddtJwstTargetVisibilityWindows:
         ]
 
     def plot_visibility_windows(self, outfile_path):
-        """Generate visibility plot with plotly
+        """Generate visibility plot with bokeh
 
         Parameters
         ----------
