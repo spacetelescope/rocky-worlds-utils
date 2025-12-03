@@ -14,13 +14,13 @@ from bokeh.models import (
     ColumnDataSource,
 )
 from bokeh.plotting import figure, show
-from bokeh.models import Whisker
-from pathlib import Path
+from bokeh.models import HoverTool, Whisker
+import os
 
 from rocky_worlds_utils.figure_utils.write_figure import write_figure
 
 
-class rockyWorldsSpectrum:
+class RockyWorldsSpectrum:
     def __init__(self, filename, plot_height=600, plot_width=1400):
         """
         Class to build Hubble spectrum quicklooks for Rocky Worlds DDT.
@@ -37,14 +37,17 @@ class rockyWorldsSpectrum:
             Size of bokeh plot width (default: 1400)
         """
 
-        self.filename = Path(filename)
+        self.filename = filename
         self.hdu = fits.open(self.filename)
         self.wavelength = self.hdu[1].data["WAVELENGTH"].flatten()
         self.flux = self.hdu[1].data["FLUX"].flatten()
         self.error = self.hdu[1].data["FLUXERROR"].flatten()
-        self.model_wavelength = self.hdu[2].data["WAVELENGTH"].flatten()
-        self.model_flux = self.hdu[2].data["FLUX"].flatten()
-
+        try:
+            self.model_wavelength = self.hdu[2].data["WAVELENGTH"].flatten()
+            self.model_flux = self.hdu[2].data["FLUX"].flatten()
+        except IndexError:
+            self.model_wavelength = None
+            self.model_flux = None
         self.targetname = self.hdu[0].header["HLSPTARG"]
 
         self.plot_height = plot_height
@@ -70,22 +73,30 @@ class rockyWorldsSpectrum:
             )
         )
 
-        tooltips = [
-            ("Wavelength", "@wavelength{0.000}"),
-            ("Flux", "@flux"),
-            ("Flux Error +/-", "@error"),
-        ]
-
         p = figure(
             width=self.plot_width,
             height=self.plot_height,
-            tooltips=tooltips,
+        )
+
+        hover_tooltips = """
+                        <div style="font-size: 12pt; font-family:Montserrat;">
+                            <b>Wavelength:</b> @wavelength <br>
+                            <b>Flux:</b> @flux <br>
+                            <b>Flux Error +/-:</b> @error
+                        </div>
+                    """
+
+        p.add_tools(
+            HoverTool(
+                tooltips=hover_tooltips,
+            )
         )
 
         p.x_range.start = min(self.wavelength) - 2
         p.x_range.end = max(self.wavelength) + 2
 
-        p.axis.axis_label_text_font_style = "bold"
+        p.title.text_font_style = "normal"
+        p.axis.axis_label_text_font_style = "normal"
 
         p.xaxis.axis_label_text_font_size = "20pt"
         p.yaxis.axis_label_text_font_size = "20pt"
@@ -138,8 +149,8 @@ class rockyWorldsSpectrum:
         p.add_layout(error)
 
         if figure_out_path:
-            filename = self.filename.name.replace("fits", "html")
-            full_file_path = Path(figure_out_path) / filename
+            filename = os.path.basename(self.filename).replace("fits", "html")
+            full_file_path = os.path.join(figure_out_path, filename)
             write_figure(p, full_file_path)
         else:
             show(p)

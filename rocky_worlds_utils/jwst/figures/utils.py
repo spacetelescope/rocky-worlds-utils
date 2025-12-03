@@ -8,17 +8,17 @@ Authors
 - Mees Fix <<mfix@stsci.edu>>
 """
 
-from pathlib import Path
+import fnmatch
+import os
 
 from astropy.io import ascii
 from astropy.table import Table
-import numpy as np
 import xarray as xr
 
 from rocky_worlds_utils.jwst.constants import ECLIPSE_TABLE_DEFS
 
 
-class eclipseDepthTable:
+class EclipseDepthTable:
     def __init__(self, tablename):
         """Obtain eclipse depth measurements from Rocky Worlds DDT
         High Level Science Products.
@@ -30,7 +30,7 @@ class eclipseDepthTable:
             already, data will be loaded. If not, new table will be
             created.
         """
-        self.tablename = Path(tablename)
+        self.tablename = tablename
         self.create_eclipse_depth_table()
 
     def add_eclipse_data_to_table(self, data_root):
@@ -44,24 +44,25 @@ class eclipseDepthTable:
         """
         previous_datasets = self.eclipse_data["filename"]
 
-        for dataset in Path(data_root).rglob("*eclipse-cat.h5"):
-            if dataset.name in previous_datasets:
-                print(f"{dataset.name} EXISTS in {self.tablename.name}, CONTINUING")
-                continue
-            else:
-                print(f"FOUND NEW DATASET: {dataset.name}")
-                new_entry = self.pull_eclipse_metadata(dataset)
-                self.eclipse_data.add_row(new_entry)
+        for root, _, files in os.walk(data_root):
+            for filename in files:
+                if fnmatch.fnmatch(filename, "*eclipse-cat.h5"):
+                    if filename in previous_datasets:
+                        continue
+                    else:
+                        print(f"FOUND NEW DATASET: {filename}")
+                        abs_filename_path = os.path.join(root, filename)
+                        new_entry = self.pull_eclipse_metadata(abs_filename_path)
+                        self.eclipse_data.add_row(new_entry)
 
     def create_eclipse_depth_table(self):
         """Create an astropy table to store eclipse depth metadata.
         If table eclipse depth measurements table exists already, it will
         be loaded in.
         """
-        if self.tablename.is_file():
-            print(f"LOCATED EXISTING TABLE: {self.tablename}")
+        if os.path.isfile(self.tablename):
+            print(f"LOCATED EXISTING TABLE: {self.tablename}...LOADING")
             self.eclipse_data = open_eclipse_depths_table(self.tablename)
-            print("TABLE LOADED")
         else:
             print(
                 f"NO EXISTING TABLE {self.tablename}, CREATING NEW EMPTY ECLIPSE TABLE"
@@ -86,8 +87,8 @@ class eclipseDepthTable:
         """
         data = xr.load_dataset(eclipse_dataset)
         new_entry = {
-            "location": eclipse_dataset.parent,
-            "filename": eclipse_dataset.name,
+            "location": os.path.dirname(eclipse_dataset),
+            "filename": os.path.basename(eclipse_dataset),
             "planet_name": data.PLANET,
             "star": data.STAR,
             "telescope": data.TELESCOP,
@@ -136,8 +137,6 @@ class eclipseDepthTable:
             header_rows=["name", "dtype"],
             overwrite=overwrite,
         )
-
-        print(f"WROTE ECLIPSE TABLE TO {writename}")
 
 
 def open_eclipse_depths_table(tablename):

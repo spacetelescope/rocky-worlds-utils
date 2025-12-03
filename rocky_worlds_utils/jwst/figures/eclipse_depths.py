@@ -10,13 +10,14 @@ Authors
 """
 
 import math
-from pathlib import Path
-
+import os
+import re
 
 from astropy.io import ascii
 from astropy.table import unique
 from bokeh.models import (
     ColumnDataSource,
+    HoverTool,
     Span,
     Whisker,
 )
@@ -32,9 +33,12 @@ def plot_eclipse_depths(
     plot_height=600,
     plot_width=1600,
 ):
-    """Generate bokeh figure for eclipse depths. Plot is of eclipse depth
+    """
+    Generate bokeh figure for eclipse depths. Plot is of eclipse depth
     values as a function of eclipse number. The eclipse table that these plots
-    are generated from can be genreated if one does not exist. See `src.eclipse_utils.pull_eclipse_metadata.py`
+    are generated from can be genreated if one does not exist. 
+    
+    See `rocky_worlds_utils.jwst.figures.utils.EclipseDepthTable`
 
     Parameters
     ----------
@@ -95,15 +99,23 @@ def plot_eclipse_depths(
             height=plot_height,
             x_range=(0.5, max(eclipse_numbers) + 0.5),
             y_range=(min(lower_err - 200), max(upper_err + 200)),
-            tooltips=[
-                ("Filename", "@filename"),
-                ("Proposal ID", "@propid"),
-                ("Time [BJD]", "@time{0.0000}"),
-                ("Eclipse Depth [ppm]", "@eclipse_depths{0.0000}"),
-                ("Eclipse Depth Error [ppm]", "@err{0.0000}"),
-            ],
         )
 
+        hover_tooltips = """
+                        <div style="font-size: 10pt; font-family:Montserrat;">
+                            <b>Filename:</b> @filename <br>
+                            <b>Proposal ID:</b> @propid <br>
+                            <b>Time [BJD]:</b> @time{0.0000} <br>
+                            <b>Eclipse Depth [ppm]:</b> @eclipse_depths{0.0000}<br>
+                            <b>Eclipse Depth Error [ppm]</b> @err{0.0000}
+                        </div>
+                    """
+
+        p.add_tools(
+            HoverTool(
+                tooltips=hover_tooltips,
+            )
+        )
         # Define parameters of plot
         custom_labels = {
             ecl_num: label for (ecl_num, label) in zip(eclipse_numbers, x_tick_labels)
@@ -208,8 +220,9 @@ def plot_eclipse_depths(
         p.renderers.extend([std_lower, std_upper, hline])
 
         if figure_out_path:
-            filename = f"{planet_name}_eclipse_depths.html"
-            full_file_path = Path(figure_out_path) / filename
+            pn_save_format = re.sub(r'[^a-zA-Z0-9]', '', planet_name).lower()
+            filename = f"{pn_save_format}_eclipse_depths.html"
+            full_file_path = os.path.join(figure_out_path, filename)
             write_figure(p, full_file_path)
         else:
             show(p)

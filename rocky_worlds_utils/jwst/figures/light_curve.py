@@ -14,6 +14,8 @@ from bokeh.models import (
     Tabs,
     ColumnDataSource,
     CustomJS,
+    HoverTool,
+    InlineStyleSheet,
     Styles,
     Slider,
     Whisker,
@@ -28,7 +30,7 @@ import xarray as xr
 from rocky_worlds_utils.figure_utils.write_figure import write_figure
 
 
-class rockyWorldsLightCurve:
+class RockyWorldsLightCurve:
     def __init__(self, filename, plot_height=600, plot_width=1400):
         """
         Class to build light curve quicklooks for Rocky Worlds DDT.
@@ -72,7 +74,16 @@ class rockyWorldsLightCurve:
         self.propid = self.data.PROPOSID
 
     def build_time_bin_slider(self, start, end, step):
-        return Slider(title="Bin Size", value=start, start=start, end=end, step=step)
+        return Slider(
+            title="Bin Size",
+            value=start,
+            start=start,
+            end=end,
+            step=step,
+            stylesheets=[
+                {".bk-slider-title": Styles(font_size="1.0rem", font_family="Montserrat")}
+            ],
+        )
 
     def build_light_curve_plot(self, time, flux, flux_err, model):
         """Build bokeh light curve figure. This takes the input and returns a single
@@ -129,7 +140,22 @@ class rockyWorldsLightCurve:
             ],
         )
 
-        p.axis.axis_label_text_font_style = "bold"
+        hover_tooltips = """
+                        <div style="font-size: 10pt; font-family:Montserrat;">
+                            <b>Time:</b> @time <br>
+                            <b>Flux:</b> @flux <br>
+                            <b>Flux Error:</b> @flux_err <br>
+                        </div>
+                    """
+
+        p.add_tools(
+            HoverTool(
+                tooltips=hover_tooltips,
+            )
+        )
+
+        p.title.text_font_style = "normal"
+        p.axis.axis_label_text_font_style = "normal"
 
         p.xaxis.axis_label_text_font_size = "20pt"
         p.yaxis.axis_label_text_font_size = "20pt"
@@ -149,7 +175,7 @@ class rockyWorldsLightCurve:
             y="flux",
             color="black",
             size=5,
-            line_alpha=0,
+            alpha=0.25,
             source=source,
             legend_label="Measured Flux",
         )
@@ -161,6 +187,7 @@ class rockyWorldsLightCurve:
             source=source,
             level="annotation",
             line_width=1,
+            line_alpha=0.25,
         )
 
         error.upper_head.size = 20
@@ -214,7 +241,7 @@ class rockyWorldsLightCurve:
 
         return data
 
-    def run(self, figure_out_path=None):
+    def plot_light_curve(self, figure_out_path=None):
         """Convenience method to build figure served in the Rocky Worlds Website.
 
         Parameters
@@ -232,11 +259,13 @@ class rockyWorldsLightCurve:
 
         tabbed_plots = Tabs(
             tabs=[clean_tab, raw_tab],
-            stylesheets=[{".bk-tab": Styles(font_size="1.0rem")}],
+            stylesheets=[
+                {".bk-tab": Styles(font_size="1.0rem", font_family="Montserrat")}
+            ],
         )
 
         if figure_out_path:
-            filename = self.filename.name.replace("h5", "ql.html")
+            filename = self.filename.name.replace("h5", "html")
             full_file_path = Path(figure_out_path) / filename
             write_figure(tabbed_plots, full_file_path)
         else:
