@@ -13,7 +13,7 @@ import os
 
 from astropy.io import fits
 
-__all__ = ["timetag_split", "extract"]
+__all__ = ["timetag_split", "extract",]
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
@@ -82,6 +82,8 @@ def timetag_split(
         raise ValueError("The extension of the output file must be .fits.")
     else:
         output_file = os.path.join(output_dir, output_file_name)
+
+    print(output_file)
 
     # Test if output file exists, and if it does, delete it if overwrite is True
     if os.path.isfile(output_file):
