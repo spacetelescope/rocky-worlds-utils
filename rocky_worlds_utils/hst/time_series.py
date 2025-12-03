@@ -592,7 +592,7 @@ def generate_lc_hlsp(
 
         hdu_1.header["SRC_DOI"] = (source_doi,
                                    "DOI for the source data taken from MAST")
-        hdu_1.header["WAVESTART"] = ((wavelength_range[0]),
+        hdu_1.header["WAVSTART"] = ((wavelength_range[0]),
                                       "Wavelength integration start value")
         hdu_1.header["WAVE_END"] = ((wavelength_range[1]),
                                       "Wavelength integration end value")
