@@ -207,6 +207,12 @@ def read_fits(dataset, prefix, target_name=None):
     detector = x1d_header_0["DETECTOR"]
     proposal_id = x1d_header_0["PROPOSID"]
 
+    if instrument == 'STIS':
+        cal_pipeline = 'CALSTIS '
+    else:
+        cal_pipeline = 'CALCOS '
+    cal_version = cal_pipeline + x1d_header_0["CAL_VER"]
+
     try:
         fp_pos = x1d_header_0["FPPOS"]  # Present only in headers of COS data
     except KeyError:
@@ -248,6 +254,7 @@ def read_fits(dataset, prefix, target_name=None):
     time_series_dict = {
         "proposal_id": proposal_id,
         "instrument": instrument,
+        "cal_version": cal_version,
         "detector": detector,
         "target": target_name,
         "ra": right_ascension,
@@ -333,7 +340,7 @@ def generate_light_curve(
         for col in range(n_subexposures):
             wavelength = time_series_dict[row]["wavelength"][col]
             flux_density = time_series_dict[row]["flux"][col]
-            gross = time_series_dict[row]["gross_counts"][col]
+            gross_counts = time_series_dict[row]["gross_counts"][col]
             net = time_series_dict[row]["net"][col]
             current_exp_time = time_series_dict[row]["exp_time"][col]
             int_flux = 0.0
@@ -355,7 +362,7 @@ def generate_light_curve(
                             current_wavelength_range,
                             wavelength[segment],
                             flux_density[segment],
-                            gross[segment],
+                            gross_counts[segment],
                             net[segment],
                             current_exp_time,
                             return_integrated_gross=False,
@@ -372,7 +379,7 @@ def generate_light_curve(
                             current_wavelength_range,
                             wavelength[segment],
                             flux_density[segment],
-                            gross[segment],
+                            gross_counts[segment],
                             net[segment],
                             current_exp_time,
                             return_integrated_gross=True,
@@ -408,8 +415,8 @@ def generate_light_curve(
 
 # Create an HLSP file for a time series
 def generate_lc_hlsp(
-    dataset, prefix, output_dir='./', filename=None, wavelength_ranges=None,
-        feature_names=None, version="1.0"
+    dataset, prefix, wavelength_ranges, source_doi, output_dir='./',
+        filename=None, feature_names=None, version="1.0"
 ):
     """
     Generate a high-level spectral product for a time-series observation. The
@@ -425,6 +432,14 @@ def generate_lc_hlsp(
     prefix : ``str``
         Fixed path to datasets directory.
 
+    wavelength_ranges : ``numpy.ndarray``
+        Array containing the start and end of the wavelength range(s) to be
+        integrated. Can be passed as a two-dimensional array containing more
+        than one range, in which case the shape must be (2, N).
+
+    source_doi : ``str``
+        Source DOI of the observation.
+
     output_dir : ``str``
         Path to output directory.
 
@@ -433,12 +448,7 @@ def generate_lc_hlsp(
         ``hlsp_rocky-worlds_hst_[instrument]_[target]_[grating]_v[version]_lc.fits``.
         Default is ``None``.
 
-    wavelength_ranges : ``numpy.ndarray``, optional
-        Array containing the start and end of the wavelength range(s) to be
-        integrated. Can be passed as a two-dimensional array containing more
-        than one range, in which case the shape must be (2, N). If ``None``, the
-        entire wavelength range available in the spectrum will be integrated.
-        Default is ``None``.
+
 
     feature_names : ``str`` or ``list``, optional
         Name or list of names of the spectroscopic features corresponding to
@@ -466,7 +476,8 @@ def generate_lc_hlsp(
     # Compile lists of meta data
     exp_start_list = np.array([d["exp_start"] for d in time_series_dict])[0]
     exp_end_list = np.array([d["exp_end"] for d in time_series_dict])[0]
-    elapsed_time = ((max(exp_end_list) - min(exp_start_list)) * u.d).to(u.s).value
+    elapsed_time = (
+            (max(exp_end_list) - min(exp_start_list)) * u.d).to(u.s).value
     exposure_time = np.sum(np.array([d["exp_time"] for d in time_series_dict]))
 
     # Instantiate the list of HDUs that will be included in the fits file
@@ -485,13 +496,16 @@ def generate_lc_hlsp(
         "ISO-8601 date-time end of the observation",
     )
     hdu_0.header["DOI"] = ("10.17909/qsyr-ny68", "Digital Object Identifier")
-    hdu_0.header["HLSPID"] = ("ROCKY-WORLDS", "Identifier of this HLSP collection")
+    hdu_0.header["HLSPID"] = ("ROCKY-WORLDS",
+                              "Identifier of this HLSP collection")
     hdu_0.header["HLSP_PI"] = (
         "Hannah Diamond-Lowe",
         "Principal Investigator of this HLSP collection",
     )
-    hdu_0.header["HLSPLEAD"] = ("Leonardo dos Santos", "Full name of HLSP project lead")
-    hdu_0.header["HLSPNAME"] = ("Rocky Worlds DDT", "Title of this HLSP project")
+    hdu_0.header["HLSPLEAD"] = ("Leonardo dos Santos",
+                                "Full name of HLSP project lead")
+    hdu_0.header["HLSPNAME"] = ("Rocky Worlds DDT",
+                                "Title of this HLSP project")
     hdu_0.header["HLSPTARG"] = (
         time_series_dict[0]["target"],
         "Designation of the target",
@@ -501,26 +515,31 @@ def generate_lc_hlsp(
         time_series_dict[0]["instrument"],
         "Instrument used for this observation",
     )
-    hdu_0.header["CAL_VER"] = (cal_version, "HST Calibration Software Version")
-    hdu_0.header["PIPELINE"] = (pipeline, "Pipeline used to reduce the HLSP data")
-    hdu_0.header["PIPE_VER"] = (pipeline_version, "Pipeline version used to reduce the HLSP data")
+    hdu_0.header["CAL_VER"] = (time_series_dict[0]["cal_version"],
+                               "HST Calibration Software Version")
+    hdu_0.header["PIPELINE"] = ("rocky-worlds-utils",
+                                "Pipeline used to reduce the HLSP data")
+    # hdu_0.header["PIPE_VER"] = (pipeline_version, "Pipeline version used to reduce the HLSP data")
     hdu_0.header["LICENSE"] = ("CC BY 4.0", "License for use of these data")
     hdu_0.header["LICENURL"] = (
         "https://creativecommons.org/licenses/by/4.0/",
         "Data license URL",
     )
-    hdu_0.header["MJD-BEG"] = (min(exp_start_list), "Start of the observation in MJD")
-    hdu_0.header["MJD-END"] = (max(exp_end_list), "End of the observation in MJD")
+    hdu_0.header["MJD-BEG"] = (min(exp_start_list),
+                               "Start of the observation in MJD")
+    hdu_0.header["MJD-END"] = (max(exp_end_list),
+                               "End of the observation in MJD")
     hdu_0.header["MJD-MID"] = (
         (max(exp_end_list) + min(exp_start_list)) / 2,
         "Mid-time of the observation in MJD",
     )
-    hdu_0.header["OBSERVAT"] = ("HST", "Observatory used to obtain this observation")
+    hdu_0.header["OBSERVAT"] = ("HST",
+                                "Observatory used to obtain this observation")
     hdu_0.header["PROPOSID"] = (
         time_series_dict[0]["proposal_id"],
         "Observatory program/proposal identifier",
     )
-    hdu_0.header["REFERENC"] = ("TBD", "Bibliographic identifier")
+    # hdu_0.header["REFERENC"] = ("TBD", "Bibliographic identifier")
     hdu_0.header["TELAPSE"] = (
         elapsed_time,
         "Time elapsed between start- and end-time of observation in seconds",
@@ -542,7 +561,10 @@ def generate_lc_hlsp(
 
     # Now calculate the light curve for each wavelength range
     for i in range(n_ranges):
-        wavelength_range = wavelength_ranges[i]
+        if n_ranges > 1:
+            wavelength_range = wavelength_ranges[i]
+        else:
+            wavelength_range = wavelength_ranges
 
         # Calculate light curve
         time_array, flux_array, error_array, gross_array, gross_error_array = (
@@ -570,10 +592,10 @@ def generate_lc_hlsp(
 
         hdu_1.header["SRC_DOI"] = (source_doi,
                                    "DOI for the source data taken from MAST")
-        hdu_1.header["WAVE_RANGE"] = (
-            (wavelength_range[0], wavelength_range[1]),
-            "Wavelength integration range",
-        )
+        hdu_1.header["WAVE_START"] = ((wavelength_range[0]),
+                                      "Wavelength integration start value")
+        hdu_1.header["WAVE_END"] = ((wavelength_range[1]),
+                                      "Wavelength integration end value")
         hdu_1.header["APERTURE"] = (
             time_series_dict[0]["aperture"],
             "Aperture used for the exposure",

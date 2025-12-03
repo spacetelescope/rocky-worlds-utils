@@ -436,11 +436,10 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
                        start_mjd, end_mjd, instrument, proposal_id,
                        exposure_time, aperture, detector, grating,
                        central_wavelength, right_ascension, declination,
-                       cal_version, pipeline, pipeline_version, source_doi,
-                       coordinate_system='ICRS', model_wavelength=None,
-                       model_flux=None, model_flux_uncertainty=None,
-                       fp_pos=None, output_dir='./', filename=None,
-                       version="1.0"):
+                       cal_version, source_doi, coordinate_system='ICRS',
+                       model_wavelength=None, model_flux=None,
+                       model_flux_uncertainty=None, fp_pos=None,
+                       output_dir='./', filename=None, version="1.0"):
     """
     Generate a spectral high-level science product.
 
@@ -493,6 +492,12 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
 
     declination : ``float``
         Declination of the observed target in degrees.
+
+    cal_version : ``str``
+        Calibration software version.
+
+    source_doi : ``str``
+        Source DOI of the observation.
 
     coordinate_system : ``str``, optional
         Coordinate system. Default is ``"ICRS"``.
@@ -556,8 +561,9 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
         "Instrument used for this observation",
     )
     hdu_0.header["CAL_VER"] = (cal_version, "HST Calibration Software Version")
-    hdu_0.header["PIPELINE"] = (pipeline, "Pipeline used to reduce the HLSP data")
-    hdu_0.header["PIPE_VER"] = (pipeline_version, "Pipeline version used to reduce the HLSP data")
+    hdu_0.header["PIPELINE"] = ("rocky-worlds-utils",
+                                "Pipeline used to reduce the HLSP data")
+    # hdu_0.header["PIPE_VER"] = (pipeline_version, "Pipeline version used to reduce the HLSP data")
     hdu_0.header["LICENSE"] = ("CC BY 4.0", "License for use of these data")
     hdu_0.header["LICENURL"] = (
         "https://creativecommons.org/licenses/by/4.0/",
