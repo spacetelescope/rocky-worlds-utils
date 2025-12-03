@@ -13,11 +13,14 @@ requires-python = ">=3.11"
 dependencies = [
     "astropy>=7.0.1",
     "astroquery>=0.4.10",
+    "bokeh>=3.8.0",
     "calcos>=3.6.1",
     "costools>=1.2.6",
     "crds>=12.1.10",
+    "jwst-gtvt>=1.1.1",
     "matplotlib>=3.10.3",
     "numpy>=2.2.4",
+    "pandas>=2.3.3",
     "scipy>=1.15.2",
     "stistools>=1.4.5",
 ]
