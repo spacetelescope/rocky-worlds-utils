@@ -12,6 +12,7 @@ import stistools
 import os
 
 from astropy.io import fits
+from stistools.poisson_err import poisson_err
 
 __all__ = ["timetag_split", "extract",]
 
@@ -163,7 +164,7 @@ def timetag_split(
     )
 
     # Clean intermediate steps if requested
-    if clean_intermediate_steps is True:
+    if clean_intermediate_steps:
         os.remove(os.path.join(output_dir, dataset + "_ts_flt.fits"))
         os.remove(os.path.join(output_dir, dataset + "_ts_raw.fits"))
     else:
