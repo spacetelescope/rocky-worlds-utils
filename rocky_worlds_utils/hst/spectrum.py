@@ -588,7 +588,7 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
         "Time elapsed between start- and end-time of observation in seconds",
     )
     hdu_0.header["TELESCOP"] = ("HST", "Telescope used for this observation")
-    hdu_0.header["TIMESYS"] = ("UTC", "Time scale of time-related keywords")
+    hdu_0.header["TIMESYS"] = ("UT1", "Time scale of time-related keywords")
     hdu_0.header["XPOSURE"] = (
         exposure_time,
         "Duration of exposure in seconds, exclusive of dead time",
@@ -597,9 +597,12 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
     # Set the spectral meta data
     hdu_1 = fits.BinTableHDU.from_columns(
         [
-            fits.Column(name="WAVELENGTH", format="D", array=wavelength),
-            fits.Column(name="FLUX", format="D", array=flux),
-            fits.Column(name="FLUXERROR", format="D", array=flux_uncertainty),
+            fits.Column(name="WAVELENGTH", format="D", array=wavelength,
+                        unit='Angstrom'),
+            fits.Column(name="FLUX", format="D", array=flux,
+                        unit='erg/s/cm**2/Angstrom'),
+            fits.Column(name="FLUXERROR", format="D", array=flux_uncertainty,
+                        unit='erg/s/cm**2/Angstrom'),
             fits.Column(name="DQ", format="D", array=dq_flag),
         ]
     )
@@ -650,7 +653,7 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
     if filename is None:
         filename = "hlsp_rocky-worlds_hst_{}_{}_{}_v{}_spec.fits".format(
             instrument.lower(),
-            target_name.lower(),
+            (target_name.lower()).replace("-", ""),
             grating.lower(),
             version,
         )

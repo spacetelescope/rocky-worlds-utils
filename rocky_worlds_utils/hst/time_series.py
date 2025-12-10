@@ -284,7 +284,8 @@ def read_fits(dataset, prefix, target_name=None):
 
 # Calculate light curve
 def generate_light_curve(
-    dataset, prefix, wavelength_range=None, return_integrated_gross=False
+    dataset, prefix, wavelength_range=None, return_integrated_gross=False,
+        time_standard='UT1'
 ):
     """
     Calculate a light curve for a time-series observation.
@@ -305,6 +306,11 @@ def generate_light_curve(
     return_integrated_gross : ``bool``, optional
         Sets whether the function returns the integrated gross and error (in
         counts) in addition to the flux. Default value is ``False``.
+
+    time_standard : ``str``, optional
+        Time standard of the light curve time stamps. The options are ``'UT1'``
+        (Universal Time), ``'UTC'`` (Coordinated Universal Time) or ``'TDB'``
+        (Barycentric Dynamical Time). Default value is ``'UT1'``.
 
     Returns
     -------
@@ -402,6 +408,17 @@ def generate_light_curve(
     gross = gross.flatten()
     gross_error = gross_error.flatten()
 
+    # Convert the UT1 time standard in the HST header information. Assumes that
+    # the header data comes in UT1 time standard.
+    if time_standard == 'UT1':
+        pass
+    elif time_standard == 'UTC':
+        time = Time(time, format="mjd", scale="ut1").utc
+    elif time_standard == 'TDB':
+        time = Time(time, format="mjd", scale="ut1").tbd
+    else:
+        raise ValueError("Time standard must be UT1, UTC, or TDB.")
+
     if return_integrated_gross is False:
         return time, flux, flux_error
     else:
@@ -410,8 +427,8 @@ def generate_light_curve(
 
 # Create an HLSP file for a time series
 def generate_lc_hlsp(
-    dataset, prefix, wavelength_ranges, source_doi, output_dir='./',
-        filename=None, feature_names=None, version="1.0"
+    dataset, prefix, wavelength_ranges, source_doi, time_standard='UT1',
+        output_dir='./', filename=None, feature_names=None, version="1.0"
 ):
     """
     Generate a high-level spectral product for a time-series observation. The
@@ -435,6 +452,11 @@ def generate_lc_hlsp(
     source_doi : ``str``
         Source DOI of the observation.
 
+    time_standard : ``str``, optional
+        Time standard of the light curve time stamps. The options are ``'UT1'``
+        (Universal Time), ``'UTC'`` (Coordinated Universal Time) or ``'TDB'``
+        (Barycentric Dynamical Time). Default value is ``'UT1'``.
+
     output_dir : ``str``
         Path to output directory.
 
@@ -442,8 +464,6 @@ def generate_lc_hlsp(
         Output filename. If ``None``, then the output filename will be
         ``hlsp_rocky-worlds_hst_[instrument]_[target]_[grating]_v[version]_lc.fits``.
         Default is ``None``.
-
-
 
     feature_names : ``str`` or ``list``, optional
         Name or list of names of the spectroscopic features corresponding to
@@ -540,7 +560,8 @@ def generate_lc_hlsp(
         "Time elapsed between start- and end-time of observation in seconds",
     )
     hdu_0.header["TELESCOP"] = ("HST", "Telescope used for this observation")
-    hdu_0.header["TIMESYS"] = ("UTC", "Time scale of time-related keywords")
+    hdu_0.header["TIMESYS"] = (time_standard,
+                               "Time scale of time-related keywords")
     hdu_0.header["XPOSURE"] = (
         exposure_time,
         "Duration of exposure in seconds, exclusive of dead time",
@@ -571,10 +592,14 @@ def generate_lc_hlsp(
         # Set the light curve meta data
         hdu_1 = fits.BinTableHDU.from_columns(
             [
-                fits.Column(name="TIME", format="D", array=time_array, unit="MJD"),
-                fits.Column(name="FLUX", format="D", array=flux_array, unit="erg/s/cm**2"),
-                fits.Column(name="FLUXERROR", format="D", array=error_array, unit="erg/s/cm**2"),
-                fits.Column(name="COUNTS", format="D", array=gross_array, unit="counts"),
+                fits.Column(name="TIME", format="D", array=time_array,
+                            unit="MJD " + time_standard),
+                fits.Column(name="FLUX", format="D", array=flux_array,
+                            unit="erg/s/cm**2"),
+                fits.Column(name="FLUXERROR", format="D", array=error_array,
+                            unit="erg/s/cm**2"),
+                fits.Column(name="COUNTS", format="D", array=gross_array,
+                            unit="counts"),
                 fits.Column(name="COUNTSERROR", format="D",
                             array=gross_error_array, unit="counts"),
             ]
@@ -589,7 +614,7 @@ def generate_lc_hlsp(
                                    "DOI for the source data taken from MAST")
         hdu_1.header["WAVSTART"] = ((wavelength_range[0]),
                                       "Wavelength integration start value")
-        hdu_1.header["WAVE_END"] = ((wavelength_range[1]),
+        hdu_1.header["WAVEND"] = ((wavelength_range[1]),
                                       "Wavelength integration end value")
         hdu_1.header["APERTURE"] = (
             time_series_dict[0]["aperture"],
@@ -612,7 +637,8 @@ def generate_lc_hlsp(
                 time_series_dict[0]["fppos"],
                 "FP-POS used for the exposure",
             )
-        hdu_1.header["RADESYS"] = ("ICRS", "Celestial coordinate reference system")
+        hdu_1.header["RADESYS"] = ("ICRS",
+                                   "Celestial coordinate reference system")
         hdu_1.header["RA_TARG"] = (
             time_series_dict[0]["ra"],
             "Right Ascension coordinate of the target in deg",
@@ -629,7 +655,7 @@ def generate_lc_hlsp(
     if filename is None:
         filename = "hlsp_rocky-worlds_hst_{}_{}_{}_v{}_lc.fits".format(
             time_series_dict[0]["instrument"].lower(),
-            time_series_dict[0]["target"].lower(),
+            (time_series_dict[0]["target"].lower()).replace("-", ""),
             time_series_dict[0]["grating"].lower(),
             version,
         )
