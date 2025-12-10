@@ -9,11 +9,12 @@ from rocky_worlds_utils.hst.time_series import integrate_flux, read_fits
 
 @pytest.mark.order(after="test_cos_timetag_split")  # Ensures file to exists first
 @pytest.mark.parametrize(
-    "exp_flux, exp_flux_err, exp_gross, exp_gross_err, return_integrated_gross",
+    "exp_flux, exp_flux_err, exp_gross, exp_gross_err, mean_sens, return_integrated_gross",
     [
         (
             6.413406112662675e-11,
             1.0756661559158064e-09,
+            None,
             None,
             None,
             False,
@@ -23,6 +24,7 @@ from rocky_worlds_utils.hst.time_series import integrate_flux, read_fits
             1.0756661559158064e-09,
             2364.58349609375,
             49.63469436620062,
+            2.0667177e-12,
             True,
         ),
     ],
@@ -32,6 +34,7 @@ def test_integrate_flux(
     exp_flux_err,
     exp_gross,
     exp_gross_err,
+    mean_sens,
     return_integrated_gross,
 ):
     filename = os.path.join(os.getcwd(), "lcil2ajnq_x1d.fits")
@@ -44,7 +47,7 @@ def test_integrate_flux(
     exptime = hdu[1].header["EXPTIME"]
 
     if return_integrated_gross:
-        result_flux, result_flux_err, result_gross, result_gross_err = integrate_flux(
+        result_flux, result_flux_err, result_gross, result_gross_err, result_sens = integrate_flux(
             (1600.0, 1700.0),
             wavelength,
             flux,
@@ -58,6 +61,7 @@ def test_integrate_flux(
             & np.isclose(result_flux_err, exp_flux_err)
             & np.isclose(result_gross, exp_gross)
             & np.isclose(result_gross_err, exp_gross_err)
+            & np.isclose(result_sens, mean_sens)
         )
     else:
         result_flux, result_flux_err = integrate_flux(
