@@ -9,6 +9,7 @@ Authors
 """
 
 from astropy.io import fits
+from astropy.stats import poisson_conf_interval
 from astroquery.mast import Observations
 from crds import assign_bestrefs
 import glob
@@ -17,14 +18,18 @@ import numpy as np
 
 
 __all__ = [
-    "obs_mode_check", "nearest_index", "get_observations", "get_stis_lsf"
+    "obs_mode_check",
+    "nearest_index",
+    "get_observations",
+    "get_stis_lsf",
+    "coadd_flux"
 ]
 
 
 # Observation mode check
 def obs_mode_check(datasets, prefix):
     """
-    Checks wheter a list of datasets were observed in the same mode.
+    Checks whether a list of datasets were observed in the same mode.
 
     Parameters
     ----------
@@ -199,3 +204,67 @@ def get_stis_lsf(grating, aperture, wavelength_region=1200):
     lsf_profile = lsf_data[:, col]
 
     return lsf_wavelength, lsf_profile
+
+
+# Combine fluxes of non-contiguous wavelength ranges
+def coadd_flux(flux, gross, sensitivity, exposure_time,
+               poisson_interval="sherpagehrels"):
+    """
+    Co-adds fluxes of non-contiguous wavelength ranges.
+
+    Parameters
+    ----------
+    flux : ``numpy.ndarray``
+        Array of flux values in units correspondent to the sensitivity unit
+        (e.g., erg/s/cm**2). The first dimension of the array must correspond to
+        the number of non-contiguous wavelength ranges. Other dimensions (such
+        as time) must be second or higher.
+
+    gross : ``numpy.ndarray``
+        Array of gross values in units correspondent to the sensitivity unit
+        (e.g., counts). The first dimension of the array must correspond to  the
+        number of non-contiguous wavelength ranges. Other dimensions (such as
+        time) must be second or higher.
+
+    sensitivity : ``numpy.ndarray``
+        Array of sensitivity in units of flux/count rate (e.g.,
+        erg/cm**2/counts). The first dimension of the array must correspond to
+        the number of non-contiguous wavelength ranges. Other dimensions (such
+        as time) must be second or higher.
+
+    exposure_time :``float`` or ``numpy.ndarray``
+        Exposure time in seconds. Must have the same shape as flux[0].
+
+    poisson_interval : ``str``, optional
+        Poisson confidence interval to use in calculation of errors. The options
+        are ``‘root-n’``, ``’root-n-0’``, ``’pearson’``, ``’sherpagehrels’, and
+        ``’frequentist-confidence’`` (same as those in
+        ``astropy.stats.poisson_conf_interval``). Default value is
+        ``'sherpagehrels'``.
+
+    Returns
+    -------
+    total_flux : ``float`` or ``numpy.ndarray``
+        Co-added flux.
+
+    total_f_err : ``numpy.ndarray``
+        Co-added flux uncertainties.
+    """
+    n_ranges = len(flux)
+
+    # The combined fluxes are simply the sum of the respective fluxes
+    total_flux = np.sum(flux, axis=0)
+    # However, the errors need to be propagate correctly. For that,
+    # we need the total gross counts of both wings and the
+    # average sensitivity of both bands
+    total_gross = np.sum(gross, axis=0)
+    avg_sens = np.sum(sensitivity, axis=0) / n_ranges
+    gross_err_array = (
+            poisson_conf_interval(total_gross, interval=poisson_interval) -
+            total_gross
+    )
+    total_err_low = -gross_err_array[0] * avg_sens / exposure_time
+    total_f_err_up = gross_err_array[1] * avg_sens / exposure_time
+    total_f_err = np.array([total_err_low, total_f_err_up])
+
+    return total_flux, total_f_err
