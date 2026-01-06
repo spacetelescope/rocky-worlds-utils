@@ -6,7 +6,6 @@ Authors
 - Mees B Fix <<mfix@stsci.edu>>
 """
 
-from astropy.io import fits
 import numpy as np
 import os
 import pytest
@@ -34,7 +33,7 @@ def test_read_hsla_product(filename):
     after=["test_read_hsla_product", "test_stis_timetag_split"]
 )  # Ensures product can be read first and that data exists
 def test_calculate_snr_hsla():
-    """Calculate SNR for mock HSLA spectrum."""
+    """Calculate SNR for STIS testing spectrum."""
     filename = os.path.join(os.getcwd(), "oev303010_x1d.fits")
     wavelength, flux, err = read_hsla_product(filename)
     expected = 46.447159145177686
