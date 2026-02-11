@@ -12,9 +12,8 @@ import stistools
 import os
 
 from astropy.io import fits
-from stistools.poisson_err import poisson_err
 
-__all__ = ["timetag_split", "extract",]
+__all__ = ["timetag_split", "extract", ]
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them

@@ -174,14 +174,17 @@ def timetag_split(
                 _ = pool.starmap(
                     calcos.calcos,
                     [
-                        (subexposure, os.path.join(output_dir, "temp/"))
+                        (subexposure, os.path.join(output_dir,
+                                                   "temp{:0{}d}/".format(np.random.randint(0, 9999), 4)))
                         for subexposure in split_list
                     ],
                 )
         except FileExistsError:
             for subexposure in split_list:
                 os.remove(subexposure)
-            shutil.rmtree(os.path.join(output_dir, "temp/"))
+            remove_temp = glob.glob(os.path.join(output_dir, "temp*/"))
+            for remove_folder in remove_temp:
+                shutil.rmtree(remove_folder)
             raise OSError(
                 "Error encountered during multiprocessing. Temporary "
                 "files were deleted."
@@ -191,13 +194,15 @@ def timetag_split(
             _ = calcos.calcos(subexposure, os.path.join(output_dir, "temp/"))
 
     # Move x1ds to output folder
-    split_list = glob.glob(os.path.join(output_dir, "temp/", dataset + "*_x1d.fits"))
+    split_list = glob.glob(os.path.join(output_dir, "temp*/", dataset + "*_x1d.fits"))
     for subexposure in split_list:
         shutil.move(subexposure, output_dir)
 
     # Clean the intermediate steps files
     if clean_intermediate_steps is True:
-        shutil.rmtree(os.path.join(output_dir, "temp/"))
+        remove_temp = glob.glob(os.path.join(output_dir, "temp*/"))
+        for remove_folder in remove_temp:
+            shutil.rmtree(remove_folder)
     else:
         pass
 
