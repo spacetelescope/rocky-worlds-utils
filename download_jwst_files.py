@@ -48,13 +48,13 @@ def temporary_umask(new_umask):
         os.umask(old_umask)
 
 
-def make_shared_dir(foldername, output_dir, exist_ok=True, dry_run=False, mode=0o2750):
+def make_shared_dir(foldername, output_dir, exist_ok=True, dry_run=False, mode=0o2751):
     """
     Create a directory with specific permissions for owner and group.
 
     Common modes:
-    - 0o2750: setgid, owner=rwx, group=rx, others=---
-    - 0o2770: setgid, owner=rwx, group=rwx, others=---
+    - 0o2751: setgid, owner=rwx, group=rx, others=--x
+    - 0o2771: setgid, owner=rwx, group=rwx, others=--x
 
     Parameters
     ----------
@@ -68,7 +68,7 @@ def make_shared_dir(foldername, output_dir, exist_ok=True, dry_run=False, mode=0
         If True, directory is not actually created.
     mode : int, optional
         Octal permission mode to use when creating the directory.
-        Defaults to 0o2750 (owner rwx, group rx, setgid).
+        Defaults to 0o2751 (owner rwx, group rx, setgid, other x).
 
     Returns
     -------
@@ -79,9 +79,9 @@ def make_shared_dir(foldername, output_dir, exist_ok=True, dry_run=False, mode=0
 
     # Decide umask dynamically based on whether group-write is intended
     if mode & 0o0020:  # Check group write bit
-        desired_umask = 0o0007  # Allow group write
+        desired_umask = 0o0006  # Allow group write; block other r/w but allow other x
     else:
-        desired_umask = 0o0027  # Block group write, all others
+        desired_umask = 0o0026  # Block group write, block rw for others
 
     if not os.path.exists(fullpath):
         if dry_run:
@@ -300,7 +300,7 @@ def main():
     root = ET.fromstring(response.content)
 
     output_dir = os.path.join(base_dir, planet_name, f"visit{visit_id}")
-    make_shared_dir(output_dir, '/', dry_run=dry_run, mode=0o2770)
+    make_shared_dir(output_dir, '/', dry_run=dry_run, mode=0o2771)
 
     # Directory structure
     uncalibrated_dir = make_shared_dir('Uncalibrated', output_dir, dry_run=dry_run)
