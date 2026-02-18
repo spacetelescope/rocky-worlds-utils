@@ -175,7 +175,7 @@ def timetag_split(
                     calcos.calcos,
                     [
                         (subexposure, os.path.join(output_dir,
-                                                   "temp{:0{}d}/".format(np.random.randint(0, 9999), 4)))
+                                                   "temp{:0{}d}/".format(np.random.randint(0, 99999), 5)))
                         for subexposure in split_list
                     ],
                 )
