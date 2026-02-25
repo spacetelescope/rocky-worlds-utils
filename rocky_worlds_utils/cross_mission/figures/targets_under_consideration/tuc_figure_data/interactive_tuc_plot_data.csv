@@ -1,0 +1,81 @@
+planet_name,v_esc,I,line_color,priority_metric
+TOI-406.01,19.8804,28.9498,mediumseagreen,0.1725
+TOI-198 b,18.43,24.5314,mediumseagreen,0.1581
+TOI-1452 b,18.9924,36.872,darkred,0.1306
+TOI-700 d,11.5341,8.2646,darkred,0.0874
+LHS 1140 b,20.1254,11.3851,mediumseagreen,0.0762
+TOI-776 b,18.6537,71.6607,darkred,0.0537
+TOI-260 b,16.7429,53.9077,darkred,0.0346
+LP 890-9 c,15.67,45.147,darkred,0.0344
+K2-415 b,19.231,141.5986,darkred,-0.0134
+TRAPPIST-1 g,12.0998,22.6502,mediumseagreen,-0.0182
+TOI-1467 b,18.2878,117.9031,darkred,-0.0244
+TOI-700 e,9.9697,12.2923,darkred,-0.0344
+TOI-1680 b,16.965,114.7851,darkred,-0.0396
+TOI-244 b,14.8532,70.5527,mediumseagreen,-0.0457
+TOI-237 b,16.1377,95.9878,darkred,-0.047
+LTT 1445 A b,16.0868,102.8242,mediumseagreen,-0.0503
+HD 260655 c,15.8812,116.309,mediumseagreen,-0.0687
+K2-239 d,11.8828,40.3789,darkred,-0.083
+TOI-5799 b,17.2509,190.4991,darkred,-0.0863
+TRAPPIST-1 f,11.1538,33.4866,mediumseagreen,-0.0865
+K2-129 b,11.06472,58.9521,darkred,-0.097
+TOI-4559 b,15.8594,180.1894,darkred,-0.1154
+Kepler-445 b,16.7645,231.7996,darkred,-0.1192
+TOI-5388.01,17.7962,295.2535,darkred,-0.1199
+TOI-2266 b,17.5073,288.0561,darkred,-0.1232
+Gliese 12 b,10.0406,32.9033,darkred,-0.1297
+TOI-1634 b,23.1136,988.2916,darkred,-0.1364
+LHS 1140 c,13.7179,133.8553,mediumseagreen,-0.1452
+LP 890-9 b,15.0238,204.5114,darkred,-0.1516
+GJ 357 b,13.7373,153.4131,mediumseagreen,-0.1592
+TOI-1468 b,17.7142,431.0966,mediumseagreen,-0.1609
+TRAPPIST-1 h,7.3504,12.9533,mediumseagreen,-0.1624
+K2-239 c,10.5634,55.0939,darkred,-0.1629
+TOI-406.01,14.0417,186.8625,mediumseagreen,-0.1705
+LHS 1815 b,13.4799,167.0916,darkred,-0.1759
+K2-239 b,11.8924,102.3432,darkred,-0.1778
+TOI-2096 b,13.8845,204.925,darkred,-0.185
+L 98-59 d,10.2975,67.2401,mediumseagreen,-0.1941
+TOI-700 b,9.4522,48.1031,darkred,-0.1946
+L 98-59 c,13.7959,235.7663,darkred,-0.203
+HD 260655 b,14.695,304.7311,mediumseagreen,-0.203
+TRAPPIST-1 e,9.7014,57.9774,mediumseagreen,-0.2048
+TOI-1693 b,15.9794,471.5918,darkred,-0.2142
+LHS 1478 b,15.3211,405.1535,mediumseagreen,-0.2158
+GJ 486 b,16.8635,603.778,mediumseagreen,-0.217
+TOI-270 b,12.8035,201.4802,mediumseagreen,-0.218
+Kepler-446 b,16.1163,534.4944,darkred,-0.2231
+LTT 1445 A c,12.4835,200.2119,mediumseagreen,-0.2283
+TOI-771 b,14.8318,401.6089,mediumseagreen,-0.2284
+TRAPPIST-1 c,12.2145,198.6968,mediumseagreen,-0.2362
+LHS 1678 d,10.308,115.5664,darkred,-0.2501
+GJ 1132 b,13.7414,510.1387,mediumseagreen,-0.2854
+GJ 3929 b,11.7759,296.8246,mediumseagreen,-0.2937
+TRAPPIST-1 b,12.4118,372.9787,mediumseagreen,-0.2953
+LP 791-18 d,10.4461,220.8045,darkred,-0.3127
+LHS 1678 c,9.8175,171.4633,darkred,-0.3128
+TOI-6086 b,13.0197,558.0824,darkred,-0.3176
+TOI-1450 A b,11.8025,382.2054,mediumseagreen,-0.3191
+GJ 3473 b,13.8688,775.4294,mediumseagreen,-0.3258
+LTT 3780 b,15.2417,1351.0152,mediumseagreen,-0.3444
+TRAPPIST-1 d,7.8492,100.1395,mediumseagreen,-0.3502
+LP 791-18 b,13.4722,918.6609,darkred,-0.3558
+TOI-5720 b,11.7675,545.2369,darkred,-0.3579
+LHS 475 b,10.4406,346.9658,darkred,-0.3607
+TOI-1685 b,16.0706,1909.4146,mediumseagreen,-0.37
+GJ 806 b,13.3648,1168.5317,mediumseagreen,-0.3844
+K2-91 b,11.8533,727.8621,darkred,-0.3851
+Wolf 327 b,15.978,2217.8321,mediumseagreen,-0.407
+TOI-6008 b,10.9746,1026.2464,darkred,-0.454
+LHS 3844 b,14.8393,2430.7437,darkred,-0.4567
+TOI-540 b,9.3414,687.7548,darkred,-0.4797
+SPECULOOS-3 b,10.2773,1090.7784,darkred,-0.4878
+L 98-59 b,7.6735,360.2068,darkred,-0.4943
+Kepler-42 b,8.3194,739.0213,darkred,-0.5359
+GJ 1252 b,11.831,2482.5638,mediumseagreen,-0.5425
+TOI-4527.01,16.9446,3954.8831,darkred,-0.5778
+LHS 1678 b,6.6633,1196.5817,darkred,-0.6801
+GJ 238 b,5.3163,504.6021,darkred,-0.6843
+Kepler-42 c,7.78,2829.0399,darkred,-0.7284
+GJ 367 b,10.6448,4820.6141,mediumseagreen,-0.7673
