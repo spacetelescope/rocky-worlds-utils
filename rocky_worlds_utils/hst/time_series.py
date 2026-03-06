@@ -281,7 +281,8 @@ def read_fits(dataset, prefix, target_name=None):
 # Calculate light curve
 def generate_light_curve(
     dataset, prefix, wavelength_range=None, return_integrated_gross=False,
-    period=None, reference_time=None
+    period=None, reference_time=None, baseline_flux=None,
+        poisson_interval="sherpagehrels"
 ):
     """
     Calculate a light curve for a time-series observation.
@@ -312,6 +313,18 @@ def generate_light_curve(
         Zero-phase reference time of the light curve in unit of Modified Julian
         Date (MJD). Required if ``period`` is set. Default is ``None``
 
+    baseline_flux : ``float``, optional
+        Flux baseline against which to normalize the light curve. If set, then
+        the returned fluxes are in units of the baseline flux. Default is
+        ``None`` (no normalization).
+
+    poisson_interval : ``str``, optional
+        Poisson confidence interval to use in calculation of errors. The options
+        are ``‘root-n’``, ``’root-n-0’``, ``’pearson’``, ``’sherpagehrels’, and
+        ``’frequentist-confidence’`` (same as those in
+        ``astropy.stats.poisson_conf_interval``). Default value is
+        ``'sherpagehrels'``.
+
     Returns
     -------
     time : ``numpy.ndarray``
@@ -320,11 +333,14 @@ def generate_light_curve(
         correspond to phases between -0.5 and 0.5.
 
     flux : ``numpy.ndarray``
-        Flux values of the light curve in erg / s / cm ** 2.
+        Flux values of the light curve in erg / s / cm ** 2. If
+        ``baseline_flux`` is set, flux values are normalized to units of
+        ``baseline_flux``.
 
     flux_error : ``numpy.ndarray``
         Uncertainties of the flux values of the light curve in
-         erg / s / cm ** 2.
+         erg / s / cm ** 2. If  `baseline_flux`` is set, flux values are
+         normalized to units of ``baseline_flux``.
     """
     if isinstance(dataset, str):
         n_dataset = 1
@@ -378,6 +394,7 @@ def generate_light_curve(
                             net[segment],
                             current_exp_time,
                             return_integrated_gross=False,
+                            poisson_interval=poisson_interval
                         )
                         current_int_gross = 0.0
                         current_gross_err = 0.0
@@ -395,6 +412,7 @@ def generate_light_curve(
                             net[segment],
                             current_exp_time,
                             return_integrated_gross=True,
+                            poisson_interval=poisson_interval
                         )
                 except ValueError:
                     current_int_flux = 0.0
@@ -424,6 +442,10 @@ def generate_light_curve(
         # Center around 0
         phase[phase > 0.5] -= 1.0
         time = phase
+
+    if baseline_flux is not None:
+        flux /= baseline_flux
+        flux_error /= baseline_flux
 
     if return_integrated_gross is False:
         return time, flux, flux_error
