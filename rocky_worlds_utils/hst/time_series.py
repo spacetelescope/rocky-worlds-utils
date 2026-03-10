@@ -248,7 +248,7 @@ def read_fits(dataset, prefix, target_name=None):
             wavelength_array[i] += data["WAVELENGTH"]
             flux_array[i] += data["FLUX"]
             error_array[i] += data["ERROR"]
-            gross_array[i] += data["GROSS"]
+            gross_array[i] += data["GROSS"] * x1d_header_i["EXPTIME"]
             net_array[i] += data["NET"]
 
     time_series_dict = {
@@ -282,7 +282,7 @@ def read_fits(dataset, prefix, target_name=None):
 def generate_light_curve(
     dataset, prefix, wavelength_range=None, return_integrated_gross=False,
     period=None, reference_time=None, baseline_flux=None,
-        poisson_interval="sherpagehrels"
+    poisson_interval="sherpagehrels"
 ):
     """
     Calculate a light curve for a time-series observation.
@@ -341,6 +341,14 @@ def generate_light_curve(
         Uncertainties of the flux values of the light curve in
          erg / s / cm ** 2. If  `baseline_flux`` is set, flux values are
          normalized to units of ``baseline_flux``.
+
+    gross : ``float``
+        Integrated gross counts. Returned only if ``return_integrated_gross`` is
+        set to ``True``.
+
+    gross_error :
+        Uncertainty of the integrated gross counts. Returned only if
+        ``return_integrated_gross`` is set to ``True``.
     """
     if isinstance(dataset, str):
         n_dataset = 1
