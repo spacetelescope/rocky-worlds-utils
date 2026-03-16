@@ -36,8 +36,8 @@ def plot_eclipse_depths(
     """
     Generate bokeh figure for eclipse depths. Plot is of eclipse depth
     values as a function of eclipse number. The eclipse table that these plots
-    are generated from can be genreated if one does not exist. 
-    
+    are generated from can be genreated if one does not exist.
+
     See `rocky_worlds_utils.jwst.figures.utils.EclipseDepthTable`
 
     Parameters
@@ -220,7 +220,7 @@ def plot_eclipse_depths(
         p.renderers.extend([std_lower, std_upper, hline])
 
         if figure_out_path:
-            pn_save_format = re.sub(r'[^a-zA-Z0-9]', '', planet_name).lower()
+            pn_save_format = re.sub(r"[^a-zA-Z0-9]", "", planet_name).lower()
             filename = f"{pn_save_format}_eclipse_depths.html"
             full_file_path = os.path.join(figure_out_path, filename)
             write_figure(p, full_file_path)
