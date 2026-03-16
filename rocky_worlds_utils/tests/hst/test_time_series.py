@@ -9,7 +9,7 @@ from rocky_worlds_utils.hst.time_series import integrate_flux, read_fits
 
 @pytest.mark.order(after="test_cos_timetag_split")  # Ensures file to exists first
 @pytest.mark.parametrize(
-    "exp_flux, exp_flux_err_low, exp_flux_err_up, exp_gross, mean_sens, return_raw_counts",
+    "exp_flux, exp_flux_err_low, exp_flux_err_up, exp_gross, mean_sens, return_integrated_gross",
     [
         (
             6.417116266554167e-11,
@@ -35,7 +35,7 @@ def test_integrate_flux(
     exp_flux_err_up,
     exp_gross,
     mean_sens,
-    return_raw_counts,
+    return_integrated_gross,
 ):
     filename = os.path.join(os.getcwd(), "lcil2ajnq_x1d.fits")
     hdu = fits.open(filename)
@@ -46,7 +46,7 @@ def test_integrate_flux(
     net = hdu[1].data["NET"].ravel()
     exptime = hdu[1].header["EXPTIME"]
 
-    if return_raw_counts:
+    if return_integrated_gross:
         result_flux, result_flux_err_low, result_flux_err_up, result_gross, result_sens = integrate_flux(
             (1600.0, 1700.0),
             wavelength,
@@ -54,7 +54,7 @@ def test_integrate_flux(
             gross,
             net,
             exptime,
-            return_raw_counts=return_raw_counts,
+            return_integrated_gross=return_integrated_gross,
         )
         assert (
             np.isclose(result_flux, exp_flux)
@@ -71,7 +71,7 @@ def test_integrate_flux(
             gross,
             net,
             exptime,
-            return_raw_counts=return_raw_counts,
+            return_integrated_gross=return_integrated_gross,
         )
         assert (
             np.isclose(result_flux, exp_flux)
