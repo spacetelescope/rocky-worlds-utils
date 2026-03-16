@@ -9,32 +9,29 @@ from rocky_worlds_utils.hst.time_series import integrate_flux, read_fits
 
 @pytest.mark.order(after="test_cos_timetag_split")  # Ensures file to exists first
 @pytest.mark.parametrize(
-    "exp_flux, exp_flux_err_low, exp_flux_err_up, exp_gross, mean_sens, return_integrated_gross",
+    "exp_flux, exp_flux_err, exp_gross, exp_gross_err, return_integrated_gross",
     [
         (
-            6.417116266554167e-11,
-            1.068551042469341e-09,
-            1.068551042469341e-09,
+            6.413406112662675e-11,
+            1.0756661559158064e-09,
             None,
             None,
             False,
         ),
         (
-            6.417116266554167e-11,
-            1.068551042469341e-09,
-            1.068551042469341e-09,
+            6.413406112662675e-11,
+            1.0756661559158064e-09,
             2364.58349609375,
-            2.0667177e-12,
+            49.63469436620062,
             True,
         ),
     ],
 )
 def test_integrate_flux(
     exp_flux,
-    exp_flux_err_low,
-    exp_flux_err_up,
+    exp_flux_err,
     exp_gross,
-    mean_sens,
+    exp_gross_err,
     return_integrated_gross,
 ):
     filename = os.path.join(os.getcwd(), "lcil2ajnq_x1d.fits")
@@ -47,7 +44,7 @@ def test_integrate_flux(
     exptime = hdu[1].header["EXPTIME"]
 
     if return_integrated_gross:
-        result_flux, result_flux_err_low, result_flux_err_up, result_gross = integrate_flux(
+        result_flux, result_flux_err, result_gross, result_gross_err = integrate_flux(
             (1600.0, 1700.0),
             wavelength,
             flux,
@@ -58,12 +55,12 @@ def test_integrate_flux(
         )
         assert (
             np.isclose(result_flux, exp_flux)
-            & np.isclose(result_flux_err_low, exp_flux_err_low)
-            & np.isclose(result_flux_err_up, exp_flux_err_up)
+            & np.isclose(result_flux_err, exp_flux_err)
             & np.isclose(result_gross, exp_gross)
+            & np.isclose(result_gross_err, exp_gross_err)
         )
     else:
-        result_flux, result_flux_err_low, result_flux_err_up = integrate_flux(
+        result_flux, result_flux_err = integrate_flux(
             (1600.0, 1700.0),
             wavelength,
             flux,
@@ -72,10 +69,8 @@ def test_integrate_flux(
             exptime,
             return_integrated_gross=return_integrated_gross,
         )
-        assert (
-            np.isclose(result_flux, exp_flux)
-            & np.isclose(result_flux_err_low, exp_flux_err_low)
-            & np.isclose(result_flux_err_up, exp_flux_err_up)
+        assert np.isclose(result_flux, exp_flux) & np.isclose(
+            result_flux_err, exp_flux_err
         )
 
 
