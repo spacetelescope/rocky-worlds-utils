@@ -47,7 +47,7 @@ def test_integrate_flux(
     exptime = hdu[1].header["EXPTIME"]
 
     if return_integrated_gross:
-        result_flux, result_flux_err_low, result_flux_err_up, result_gross, result_sens = integrate_flux(
+        result_flux, result_flux_err_low, result_flux_err_up, result_gross = integrate_flux(
             (1600.0, 1700.0),
             wavelength,
             flux,
@@ -61,7 +61,6 @@ def test_integrate_flux(
             & np.isclose(result_flux_err_low, exp_flux_err_low)
             & np.isclose(result_flux_err_up, exp_flux_err_up)
             & np.isclose(result_gross, exp_gross)
-            & np.isclose(result_sens, mean_sens)
         )
     else:
         result_flux, result_flux_err_low, result_flux_err_up = integrate_flux(
