@@ -10,7 +10,6 @@ Authors
 - Leonardo dos Santos <<ldsantos@stsci.edu>>
 """
 
-
 import astropy.constants as const
 import astropy.units as u
 import numpy as np
@@ -23,14 +22,14 @@ __all__ = ["intrinsic_stellar_profile", "ism_profile", "observed_lya_profile"]
 
 
 # Physical constants
-LIGHT_SPEED = const.c.to(u.cm / u.s).value         # speed of light [cm/s]
-BOLTZMANN_CONSTANT = const.k_B.to(u.erg / u.K).value   # Boltzmann constant [erg/K]
-HYDROGEN_MASS = const.m_p.to(u.g).value       # hydrogen mass [g]
+LIGHT_SPEED = const.c.to(u.cm / u.s).value  # speed of light [cm/s]
+BOLTZMANN_CONSTANT = const.k_B.to(u.erg / u.K).value  # Boltzmann constant [erg/K]
+HYDROGEN_MASS = const.m_p.to(u.g).value  # hydrogen mass [g]
 DEUTERIUM_MASS = 2 * HYDROGEN_MASS  # deuterium mass [approximate]
-ELECTRON_CHARGE = 4.80320425e-10    # electron charge [esu]
-ELECTRON_MASS = const.m_e.to(u.g).value      # electron mass [g]
-LYA_OSCILLATOR_STRENGTH = 0.4164    # oscillator strength for Lyman-alpha
-LYA_BROADENING = 6.265e8            # natural broadening [s^-1]
+ELECTRON_CHARGE = 4.80320425e-10  # electron charge [esu]
+ELECTRON_MASS = const.m_e.to(u.g).value  # electron mass [g]
+LYA_OSCILLATOR_STRENGTH = 0.4164  # oscillator strength for Lyman-alpha
+LYA_BROADENING = 6.265e8  # natural broadening [s^-1]
 
 # Line center wavelengths [cm]
 LAMBDA_HI_REST = 1215.67e-8
@@ -39,11 +38,15 @@ LAMBDA_OV_REST = 1218.344e-8
 
 
 # Lyman-alpha intrinsic profile
-def intrinsic_stellar_profile(wavelength, star_velocity,
-                              log_lorentzian_amplitude, lorentzian_width,
-                              gaussian_width,
-                              reference_wavelength=LAMBDA_HI_REST,
-                              self_absorption_parameter=0):
+def intrinsic_stellar_profile(
+    wavelength,
+    star_velocity,
+    log_lorentzian_amplitude,
+    lorentzian_width,
+    gaussian_width,
+    reference_wavelength=LAMBDA_HI_REST,
+    self_absorption_parameter=0,
+):
     """
     Calculates the Lyman-alpha intrinsic profile of a star for a given
     wavelength array.
@@ -80,31 +83,38 @@ def intrinsic_stellar_profile(wavelength, star_velocity,
     profile : ``numpy.ndarray``
         Stellar emission intrinsic profile.
     """
-    line_rest_wl = reference_wavelength * 1E8  # Angstrom to cm
-    gaussian_width_cm = gaussian_width * 1E5  # km / s to cm / s
-    lorentzian_width_cm = lorentzian_width * 1E5  # km / s to cm / s
-    star_velocity_cm = star_velocity * 1E5  # km / s to cm / s
+    line_rest_wl = reference_wavelength * 1e8  # Angstrom to cm
+    gaussian_width_cm = gaussian_width * 1e5  # km / s to cm / s
+    lorentzian_width_cm = lorentzian_width * 1e5  # km / s to cm / s
+    star_velocity_cm = star_velocity * 1e5  # km / s to cm / s
     line_center = star_velocity_cm / LIGHT_SPEED * line_rest_wl + line_rest_wl
     sigma_gaussian = gaussian_width_cm / LIGHT_SPEED * line_rest_wl / 2.35482
-        # Convert Gaussian FWHM to HWHM
+    # Convert Gaussian FWHM to HWHM
     hwhm_lorentzian = lorentzian_width_cm / LIGHT_SPEED * line_rest_wl / 2
-    normalization = 2 / (np.pi * lorentzian_width_cm /
-                         LIGHT_SPEED * line_rest_wl)
-    amplitude = 10 ** log_lorentzian_amplitude
+    normalization = 2 / (np.pi * lorentzian_width_cm / LIGHT_SPEED * line_rest_wl)
+    amplitude = 10**log_lorentzian_amplitude
 
-    emission_profile = (normalization * amplitude *
-                        voigt_profile(wavelength - line_center, sigma_gaussian,
-                                      hwhm_lorentzian))
-    reversal_profile = np.exp(-self_absorption_parameter * emission_profile /
-                              np.max(emission_profile))
+    emission_profile = (
+        normalization
+        * amplitude
+        * voigt_profile(wavelength - line_center, sigma_gaussian, hwhm_lorentzian)
+    )
+    reversal_profile = np.exp(
+        -self_absorption_parameter * emission_profile / np.max(emission_profile)
+    )
     profile = emission_profile * reversal_profile
     return profile
 
 
 # ISM absorption profile
-def ism_profile(wavelength, log_h1_column_density, gas_temperature,
-                turbulence_velocity=0.0, los_velocity=0.0,
-                deuterium_hydrogen_ratio=2e-5):
+def ism_profile(
+    wavelength,
+    log_h1_column_density,
+    gas_temperature,
+    turbulence_velocity=0.0,
+    los_velocity=0.0,
+    deuterium_hydrogen_ratio=2e-5,
+):
     """
     Calculates the ISM profile of a star for a given wavelength array and ISM
     properties.
@@ -136,7 +146,7 @@ def ism_profile(wavelength, log_h1_column_density, gas_temperature,
         ISM absorption profile in the Lyman-alpha and deuterium lines.
     """
     # User parameters
-    n_hi = 10 ** log_h1_column_density  # column density of H I [cm^-2]
+    n_hi = 10**log_h1_column_density  # column density of H I [cm^-2]
     n_di = n_hi * deuterium_hydrogen_ratio  # column density of D I [cm^-2]
 
     # Convert to Hz
@@ -153,10 +163,14 @@ def ism_profile(wavelength, log_h1_column_density, gas_temperature,
     nu_di = _lambda_to_nu(lambda_di)
 
     # Doppler b parameters
-    b_hi = np.sqrt(2 * BOLTZMANN_CONSTANT * gas_temperature / HYDROGEN_MASS +
-                   turbulence_velocity ** 2)
-    b_di = np.sqrt(2 * BOLTZMANN_CONSTANT * gas_temperature / DEUTERIUM_MASS +
-                   turbulence_velocity ** 2)
+    b_hi = np.sqrt(
+        2 * BOLTZMANN_CONSTANT * gas_temperature / HYDROGEN_MASS
+        + turbulence_velocity**2
+    )
+    b_di = np.sqrt(
+        2 * BOLTZMANN_CONSTANT * gas_temperature / DEUTERIUM_MASS
+        + turbulence_velocity**2
+    )
     delta_nu_d_hi = nu_hi * b_hi / LIGHT_SPEED
     delta_nu_d_di = nu_di * b_di / LIGHT_SPEED
     a_hi = LYA_BROADENING / (4 * np.pi * delta_nu_d_hi)
@@ -168,8 +182,11 @@ def ism_profile(wavelength, log_h1_column_density, gas_temperature,
         return np.real(wofz(u + 1j * a)) / (delta_nu_d * np.sqrt(np.pi))
 
     # Cross-section coefficient
-    sigma_0 = ((np.pi * ELECTRON_CHARGE ** 2) / (ELECTRON_MASS * LIGHT_SPEED) *
-               LYA_OSCILLATOR_STRENGTH)  # [cm² Hz]
+    sigma_0 = (
+        (np.pi * ELECTRON_CHARGE**2)
+        / (ELECTRON_MASS * LIGHT_SPEED)
+        * LYA_OSCILLATOR_STRENGTH
+    )  # [cm² Hz]
 
     # H I absorption
     phi_hi = _voigt_profile(frequency, nu_hi, a_hi, delta_nu_d_hi)
@@ -187,17 +204,25 @@ def ism_profile(wavelength, log_h1_column_density, gas_temperature,
 
 
 # Calculate the Lyman-alpha profile as it would be observed with HST/STIS
-def observed_lya_profile(grating, aperture, wavelength,
-                         star_log_lorentzian_amplitude, star_lorentzian_width,
-                         star_gaussian_width, ism_log_h1_column_density,
-                         ism_gas_temperature, star_velocity=0.0,
-                         star_self_absorption_parameter=0,
-                         star_ov_log_lorentzian_amplitude=-20,
-                         star_ov_lorentzian_width=999,
-                         star_ov_gaussian_width=999,
-                         ism_turbulence_velocity=0.0, ism_los_velocity=0.0,
-                         ism_deuterium_hydrogen_ratio=2e-5,
-                         return_all_profiles=False):
+def observed_lya_profile(
+    grating,
+    aperture,
+    wavelength,
+    star_log_lorentzian_amplitude,
+    star_lorentzian_width,
+    star_gaussian_width,
+    ism_log_h1_column_density,
+    ism_gas_temperature,
+    star_velocity=0.0,
+    star_self_absorption_parameter=0,
+    star_ov_log_lorentzian_amplitude=-20,
+    star_ov_lorentzian_width=999,
+    star_ov_gaussian_width=999,
+    ism_turbulence_velocity=0.0,
+    ism_los_velocity=0.0,
+    ism_deuterium_hydrogen_ratio=2e-5,
+    return_all_profiles=False,
+):
     """
     Calculates the Lyman-alpha profile of a star given its intrinsic parameters,
     parameters of the interstellar medium and the instrumental parameters.
@@ -286,33 +311,41 @@ def observed_lya_profile(grating, aperture, wavelength,
         star_log_lorentzian_amplitude,
         star_lorentzian_width,
         star_gaussian_width,
-        self_absorption_parameter=star_self_absorption_parameter
+        self_absorption_parameter=star_self_absorption_parameter,
     )
-    ism_absorption_profile = ism_profile(wavelength,
-                                         ism_log_h1_column_density,
-                                         ism_gas_temperature,
-                                         ism_turbulence_velocity,
-                                         ism_los_velocity,
-                                         ism_deuterium_hydrogen_ratio)
+    ism_absorption_profile = ism_profile(
+        wavelength,
+        ism_log_h1_column_density,
+        ism_gas_temperature,
+        ism_turbulence_velocity,
+        ism_los_velocity,
+        ism_deuterium_hydrogen_ratio,
+    )
     ov_emission_profile = intrinsic_stellar_profile(
         wavelength,
         star_velocity,
         star_ov_log_lorentzian_amplitude,
         star_ov_lorentzian_width,
         star_ov_gaussian_width,
-        reference_wavelength=LAMBDA_OV_REST
+        reference_wavelength=LAMBDA_OV_REST,
     )
-    observable_lya_profile = ((intrinsic_profile + ov_emission_profile) *
-                              ism_absorption_profile)
+    observable_lya_profile = (
+        intrinsic_profile + ov_emission_profile
+    ) * ism_absorption_profile
 
     lsf_wavelength, lsf_profile = get_stis_lsf(grating, aperture)
     lsf_wavelength += np.mean(wavelength)  # Necessary for convolution to work
-    lsf_profile_interp = np.interp(wavelength, lsf_wavelength, lsf_profile,
-                                   left=0.0, right=0.0)
+    lsf_profile_interp = np.interp(
+        wavelength, lsf_wavelength, lsf_profile, left=0.0, right=0.0
+    )
     observed_lya_flux = convolve(observable_lya_profile, lsf_profile_interp)
 
     if return_all_profiles:
-        return (observed_lya_flux, observable_lya_profile, intrinsic_profile,
-                ism_absorption_profile)
+        return (
+            observed_lya_flux,
+            observable_lya_profile,
+            intrinsic_profile,
+            ism_absorption_profile,
+        )
     else:
         return observed_lya_flux

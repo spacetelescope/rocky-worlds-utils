@@ -31,7 +31,7 @@ __all__ = [
     "calculate_snr_hsla",
     "plot_lines_hsla",
     "coadd_first_order",
-    "generate_spec_hlsp"
+    "generate_spec_hlsp",
 ]
 
 _KEY_LINE_IDS = [
@@ -50,9 +50,13 @@ _C_SPEED = c.c.to(u.km / u.s).value
 
 
 # Co-adds spectra
-def coadd_first_order(datasets, prefix='./', radial_velocity_corrections=None,
-                      acceptable_dq_flags=(0, 64, 128, 1024, 2048),
-                      weight='sensitivity'):
+def coadd_first_order(
+    datasets,
+    prefix="./",
+    radial_velocity_corrections=None,
+    acceptable_dq_flags=(0, 64, 128, 1024, 2048),
+    weight="sensitivity",
+):
     """
     Co-adds HST first-order spectra of the same mode. The basic workflow of this
     function is to interpolate the spectra into a common wavelength table and
@@ -102,42 +106,42 @@ def coadd_first_order(datasets, prefix='./', radial_velocity_corrections=None,
     if tools.obs_mode_check(datasets, prefix):
         pass
     else:
-        raise ValueError('Observations do not have the same mode.')
+        raise ValueError("Observations do not have the same mode.")
 
     # Check if datasets correspond to the same mode
     instrument = []
     optical_element = []
     central_wavelength = []
     for dataset in datasets:
-        header = fits.getheader(prefix + dataset + '_x1d.fits')
-        instrument.append(header['INSTRUME'])
-        optical_element.append(header['OPT_ELEM'])
-        central_wavelength.append(header['CENWAVE'])
+        header = fits.getheader(prefix + dataset + "_x1d.fits")
+        instrument.append(header["INSTRUME"])
+        optical_element.append(header["OPT_ELEM"])
+        central_wavelength.append(header["CENWAVE"])
 
     spectra = []
     for i, dataset in enumerate(datasets):
-        data = fits.getdata(prefix + dataset + '_x1d.fits')
+        data = fits.getdata(prefix + dataset + "_x1d.fits")
 
         spectrum = {
-            'wavelength' : data['WAVELENGTH'][0],
-            'flux' : data['FLUX'][0],
-            'uncertainty' : data['ERROR'][0],
-            'data_quality' : data['DQ'][0],
-            'net' : data['NET'][0],
-            'gross' : data['GROSS'][0]
+            "wavelength": data["WAVELENGTH"][0],
+            "flux": data["FLUX"][0],
+            "uncertainty": data["ERROR"][0],
+            "data_quality": data["DQ"][0],
+            "net": data["NET"][0],
+            "gross": data["GROSS"][0],
         }
 
         # If radial_velocity_corrections are passed, apply them
         if radial_velocity_corrections is not None:
-            wavelength_shift = (radial_velocity_corrections[i]  /
-                                _C_SPEED * spectrum['wavelength'])
-            spectrum['wavelength'] += wavelength_shift
+            wavelength_shift = (
+                radial_velocity_corrections[i] / _C_SPEED * spectrum["wavelength"]
+            )
+            spectrum["wavelength"] += wavelength_shift
 
         spectra.append(spectrum)
 
     # First we need to determine which spectrum has a higher sensitivity
-    avg_sensitivity = np.array([np.nanmean(sk['net'] / sk['flux'])
-                                for sk in spectra])
+    avg_sensitivity = np.array([np.nanmean(sk["net"] / sk["flux"]) for sk in spectra])
 
     # We interpolate the lower-SNR spectra to the wavelength bins of the higher
     # SNR spectrum.
@@ -151,42 +155,57 @@ def coadd_first_order(datasets, prefix='./', radial_velocity_corrections=None,
     dq_interp = []
     for i in range(n_datasets - 1):
         # Perform the interpolation
-        f_interp.append(np.interp(reference['wavelength'],
-                                  spectra[i]['wavelength'],
-                                  spectra[i]['flux']))
-        err_interp.append(np.interp(reference['wavelength'],
-                                    spectra[i]['wavelength'],
-                                    spectra[i]['uncertainty']))
-        net_interp.append(np.interp(reference['wavelength'],
-                                    spectra[i]['wavelength'],
-                                    spectra[i]['net']))
-        gross_interp.append(np.interp(reference['wavelength'],
-                                      spectra[i]['wavelength'],
-                                      spectra[i]['gross']))
+        f_interp.append(
+            np.interp(
+                reference["wavelength"], spectra[i]["wavelength"], spectra[i]["flux"]
+            )
+        )
+        err_interp.append(
+            np.interp(
+                reference["wavelength"],
+                spectra[i]["wavelength"],
+                spectra[i]["uncertainty"],
+            )
+        )
+        net_interp.append(
+            np.interp(
+                reference["wavelength"], spectra[i]["wavelength"], spectra[i]["net"]
+            )
+        )
+        gross_interp.append(
+            np.interp(
+                reference["wavelength"], spectra[i]["wavelength"], spectra[i]["gross"]
+            )
+        )
 
         # Instead of interpolating DQ flags, we take the bitwise or of DQ flag
         # corresponding to the pixels that make up the interpolated information.
         # This is done using scipy.stats.binned_statistic(). This is very hacky,
         # so I apologize for the mess
-        wavelength_bin_widths = np.diff(reference['wavelength'])
-        wavelength_bin_edges_trim = \
-            reference['wavelength'][:-1] - wavelength_bin_widths / 2
-        wavelength_bin_edges = \
-            np.concatenate((
+        wavelength_bin_widths = np.diff(reference["wavelength"])
+        wavelength_bin_edges_trim = (
+            reference["wavelength"][:-1] - wavelength_bin_widths / 2
+        )
+        wavelength_bin_edges = np.concatenate(
+            (
                 wavelength_bin_edges_trim,
                 np.array(
-                    [wavelength_bin_edges_trim[-1] + wavelength_bin_widths[-1],
-                     reference['wavelength'][-1] + wavelength_bin_widths[-1]
-                     / 2])
-            ))
+                    [
+                        wavelength_bin_edges_trim[-1] + wavelength_bin_widths[-1],
+                        reference["wavelength"][-1] + wavelength_bin_widths[-1] / 2,
+                    ]
+                ),
+            )
+        )
 
         def _combine_dq(dq_flags_array):
             return reduce(np.bitwise_or, dq_flags_array).astype(int)
 
         dq_interp_i, _, _ = binned_statistic(
-            spectra[i]['wavelength'],
-            spectra[i]['data_quality'],
-            statistic=_combine_dq, bins=wavelength_bin_edges
+            spectra[i]["wavelength"],
+            spectra[i]["data_quality"],
+            statistic=_combine_dq,
+            bins=wavelength_bin_edges,
         )
         dq_interp.append(dq_interp_i)
 
@@ -200,26 +219,25 @@ def coadd_first_order(datasets, prefix='./', radial_velocity_corrections=None,
     # arbitraty value; these interpolated pixels will be ignored anyway during
     # merging
     sens_interp[np.where(np.isnan(sens_interp))] = 0.0
-    sens_ref = reference['net'] / reference['flux']
+    sens_ref = reference["net"] / reference["flux"]
 
     # Co-add the spectra. We will take the weighted averaged, with weights equal
     # to the inverse of the uncertainties squared multiplied by a scale factor
     # to avoid numerical overflows.
-    if weight == 'sensitivity':
-        scale = 1E-10
+    if weight == "sensitivity":
+        scale = 1e-10
         weights_interp = sens_interp * scale
         weights_ref = sens_ref * scale
-    elif weight == 'snr':
-        scale = 1E-20
+    elif weight == "snr":
+        scale = 1e-20
         weights_interp = (1 / err_interp) ** 2 * scale
-        weights_ref = (1 / reference['uncertainty']) ** 2 * scale
+        weights_ref = (1 / reference["uncertainty"]) ** 2 * scale
     else:
-        raise ValueError(
-            'The weighting option "{}" is not implemented.'.format(weight))
+        raise ValueError('The weighting option "{}" is not implemented.'.format(weight))
 
     # Here we deal with the data-quality flags. We only accept flags that are
     # listed in `acceptable_dq_flags`. Let's initialize the dq flag arrays
-    dq_ref = reference['data_quality']
+    dq_ref = reference["data_quality"]
     # We start assuming that all the dq weights are zero
     dq_weights_ref = np.zeros_like(dq_ref)
     dq_weights_interp = np.zeros_like(dq_interp)
@@ -231,8 +249,7 @@ def coadd_first_order(datasets, prefix='./', radial_velocity_corrections=None,
     # add them in case they are an acceptable DQ flag
     dq_weights_ref_0 = np.zeros_like(dq_weights_ref)
     dq_weights_interp_0 = np.zeros_like(dq_weights_interp)
-    if any(0 in acceptable_dq_flags for it in range(len(acceptable_dq_flags))) \
-            is True:
+    if any(0 in acceptable_dq_flags for it in range(len(acceptable_dq_flags))) is True:
         dq_weights_ref_0[np.where(dq_ref == 0)] = 1
         dq_weights_interp_0[np.where(dq_interp == 0)] = 1
     dq_weights_ref += dq_weights_ref_0
@@ -242,8 +259,7 @@ def coadd_first_order(datasets, prefix='./', radial_velocity_corrections=None,
     # doing a bitwise-or between all components that go into the co-added
     # spectrum
     dq_interp_collapsed = np.bitwise_or.reduce(dq_interp, axis=0)
-    dq_coadd = np.bitwise_or.reduce(np.array([dq_interp_collapsed, dq_ref]),
-                                    axis=0)
+    dq_coadd = np.bitwise_or.reduce(np.array([dq_interp_collapsed, dq_ref]), axis=0)
 
     # Now we need to verify if we are setting the dq weighting to zero in both
     # the reference and the interpolated dqs. If this is the case, we will
@@ -262,27 +278,32 @@ def coadd_first_order(datasets, prefix='./', radial_velocity_corrections=None,
     sum_weights = np.sum(weights_interp, axis=0) + weights_ref
 
     # Finally co-add the spectra
-    wl_coadd = np.copy(reference['wavelength'])
+    wl_coadd = np.copy(reference["wavelength"])
 
-    f_coadd = np.zeros_like(reference['flux'])
-    err_coadd = np.zeros_like(reference['uncertainty'])
-    net_coadd = np.zeros_like(reference['net'])
-    gross_coadd = np.zeros_like(reference['gross'])
+    f_coadd = np.zeros_like(reference["flux"])
+    err_coadd = np.zeros_like(reference["uncertainty"])
+    net_coadd = np.zeros_like(reference["net"])
+    gross_coadd = np.zeros_like(reference["gross"])
     for i in range(n_datasets - 1):
         f_coadd += f_interp[i] * weights_interp[i]
         err_coadd += err_interp[i] ** 2 * weights_interp[i] ** 2
         net_coadd += net_interp[i] * weights_interp[i]
         gross_coadd += gross_interp[i] * weights_interp[i]
-    f_coadd += reference['flux'] * weights_ref
-    err_coadd += reference['uncertainty'] ** 2 * weights_ref ** 2
-    net_coadd += reference['net'] * weights_ref
+    f_coadd += reference["flux"] * weights_ref
+    err_coadd += reference["uncertainty"] ** 2 * weights_ref**2
+    net_coadd += reference["net"] * weights_ref
     f_coadd = f_coadd / sum_weights
-    err_coadd = err_coadd ** 0.5 / sum_weights
+    err_coadd = err_coadd**0.5 / sum_weights
     net_coadd = net_coadd / sum_weights
     gross_coadd = gross_coadd / sum_weights
-    coadded_spectrum = {'wavelength': wl_coadd, 'flux': f_coadd,
-                      'uncertainty': err_coadd, 'data_quality': dq_coadd,
-                      'net': net_coadd, 'gross': gross_coadd}
+    coadded_spectrum = {
+        "wavelength": wl_coadd,
+        "flux": f_coadd,
+        "uncertainty": err_coadd,
+        "data_quality": dq_coadd,
+        "net": net_coadd,
+        "gross": gross_coadd,
+    }
 
     return coadded_spectrum
 
@@ -413,10 +434,10 @@ def plot_lines_hsla(
             velocity = (wavelength - central_wl) / central_wl * _C_SPEED
             i0 = nearest_index(velocity, velocity_range[0])
             i1 = nearest_index(velocity, velocity_range[1])
-            v_plot = velocity[i0: i1 + 1]
-            wl_plot = wavelength[i0: i1 + 1]
-            f_plot = flux[i0: i1 + 1] / scale
-            u_plot = error[i0: i1 + 1] / scale
+            v_plot = velocity[i0 : i1 + 1]
+            wl_plot = wavelength[i0 : i1 + 1]
+            f_plot = flux[i0 : i1 + 1] / scale
+            u_plot = error[i0 : i1 + 1] / scale
             snr = calculate_snr_hsla(wl_plot, f_plot, u_plot)
             ax[row, col].plot(v_plot, f_plot, label=str(snr))
             ax[row, col].set_title(
@@ -432,14 +453,34 @@ def plot_lines_hsla(
 
 
 # Generate a spectral HLSP
-def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
-                       start_mjd, end_mjd, instrument, proposal_id,
-                       exposure_time, aperture, detector, grating,
-                       central_wavelength, right_ascension, declination,
-                       cal_version, source_doi, coordinate_system='ICRS',
-                       model_wavelength=None, model_flux=None,
-                       model_flux_uncertainty=None, fp_pos=None,
-                       output_dir='./', filename=None, version="1.0"):
+def generate_spec_hlsp(
+    wavelength,
+    flux,
+    flux_uncertainty,
+    dq_flag,
+    target_name,
+    start_mjd,
+    end_mjd,
+    instrument,
+    proposal_id,
+    exposure_time,
+    aperture,
+    detector,
+    grating,
+    central_wavelength,
+    right_ascension,
+    declination,
+    cal_version,
+    source_doi,
+    coordinate_system="ICRS",
+    model_wavelength=None,
+    model_flux=None,
+    model_flux_uncertainty=None,
+    fp_pos=None,
+    output_dir="./",
+    filename=None,
+    version="1.0",
+):
     """
     Generate a spectral high-level science product.
 
@@ -539,47 +580,48 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
 
     # Set the common meta data
     hdu_0.header["HLSPTYPE"] = ("Spectral", "HLSP Type")
-    hdu_0.header["DATE-BEG"] = (start_time.iso,
+    hdu_0.header["DATE-BEG"] = (
+        start_time.iso,
         "ISO-8601 date-time start of the observation",
     )
-    hdu_0.header["DATE-END"] = (end_time.iso,
+    hdu_0.header["DATE-END"] = (
+        end_time.iso,
         "ISO-8601 date-time end of the observation",
     )
     hdu_0.header["DOI"] = ("10.17909/qsyr-ny68", "Digital Object Identifier")
-    hdu_0.header["HLSPID"] = ("ROCKY-WORLDS",
-                              "Identifier of this HLSP collection")
+    hdu_0.header["HLSPID"] = ("ROCKY-WORLDS", "Identifier of this HLSP collection")
     hdu_0.header["HLSP_PI"] = (
         "Hannah Diamond-Lowe",
         "Principal Investigator of this HLSP collection",
     )
-    hdu_0.header["HLSPLEAD"] = ("Leonardo dos Santos",
-                                "Full name of HLSP project lead")
+    hdu_0.header["HLSPLEAD"] = ("Leonardo dos Santos", "Full name of HLSP project lead")
     hdu_0.header["HLSPNAME"] = ("Rocky Worlds DDT", "Title of this HLSP project")
     hdu_0.header["HLSPTARG"] = (target_name, "Designation of the target")
     hdu_0.header["HLSPVER"] = (version, "Data product version")
-    hdu_0.header["INSTRUME"] = (instrument,
+    hdu_0.header["INSTRUME"] = (
+        instrument,
         "Instrument used for this observation",
     )
     hdu_0.header["CAL_VER"] = (cal_version, "HST Calibration Software Version")
-    hdu_0.header["PIPELINE"] = ("rocky-worlds-utils",
-                                "Pipeline used to reduce the HLSP data")
+    hdu_0.header["PIPELINE"] = (
+        "rocky-worlds-utils",
+        "Pipeline used to reduce the HLSP data",
+    )
     # hdu_0.header["PIPE_VER"] = (pipeline_version, "Pipeline version used to reduce the HLSP data")
     hdu_0.header["LICENSE"] = ("CC BY 4.0", "License for use of these data")
     hdu_0.header["LICENURL"] = (
         "https://creativecommons.org/licenses/by/4.0/",
         "Data license URL",
     )
-    hdu_0.header["MJD-BEG"] = (start_mjd,
-                               "Start of the observation in MJD")
-    hdu_0.header["MJD-END"] = (end_mjd,
-                               "End of the observation in MJD")
+    hdu_0.header["MJD-BEG"] = (start_mjd, "Start of the observation in MJD")
+    hdu_0.header["MJD-END"] = (end_mjd, "End of the observation in MJD")
     hdu_0.header["MJD-MID"] = (
         (start_mjd + end_mjd) / 2,
         "Mid-time of the observation in MJD",
     )
-    hdu_0.header["OBSERVAT"] = ("HST",
-                                "Observatory used to obtain this observation")
-    hdu_0.header["PROPOSID"] = (proposal_id,
+    hdu_0.header["OBSERVAT"] = ("HST", "Observatory used to obtain this observation")
+    hdu_0.header["PROPOSID"] = (
+        proposal_id,
         "Observatory program/proposal identifier",
     )
     # hdu_0.header["REFERENC"] = ("TBD", "Bibliographic identifier")
@@ -597,12 +639,18 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
     # Set the spectral meta data
     hdu_1 = fits.BinTableHDU.from_columns(
         [
-            fits.Column(name="WAVELENGTH", format="D", array=wavelength,
-                        unit='Angstrom'),
-            fits.Column(name="FLUX", format="D", array=flux,
-                        unit='erg/s/cm**2/Angstrom'),
-            fits.Column(name="FLUXERROR", format="D", array=flux_uncertainty,
-                        unit='erg/s/cm**2/Angstrom'),
+            fits.Column(
+                name="WAVELENGTH", format="D", array=wavelength, unit="Angstrom"
+            ),
+            fits.Column(
+                name="FLUX", format="D", array=flux, unit="erg/s/cm**2/Angstrom"
+            ),
+            fits.Column(
+                name="FLUXERROR",
+                format="D",
+                array=flux_uncertainty,
+                unit="erg/s/cm**2/Angstrom",
+            ),
             fits.Column(name="DQ", format="D", array=dq_flag),
         ]
     )
@@ -610,13 +658,14 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
     hdu_1.header["DESCRIP"] = ("Observed spectrum", "Description of data")
     hdu_1.header["SRC_DOI"] = (source_doi, "DOI for the source data taken from MAST")
     hdu_1.header["SIMULATD"] = (False, "Simulated-data flag")
-    hdu_1.header["RA_TARG"] = (right_ascension,
-                               "Right Ascension coordinate of the target")
-    hdu_1.header["DEC_TARG"] = (declination,
-                                "Declination coordinate of the target")
+    hdu_1.header["RA_TARG"] = (
+        right_ascension,
+        "Right Ascension coordinate of the target",
+    )
+    hdu_1.header["DEC_TARG"] = (declination, "Declination coordinate of the target")
     hdu_1.header["RADESYS"] = (
         coordinate_system,
-        "Mnemonic for celestial coordinate reference system"
+        "Mnemonic for celestial coordinate reference system",
     )
     hdu_1.header["APERTURE"] = (aperture, "Aperture used for the exposure")
     hdu_1.header["DETECTOR"] = (detector, "Detector used for the exposure")
@@ -625,9 +674,12 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
     elif isinstance(grating, list):
         n_elements = len(grating)
         for i in range(n_elements):
-            hdu_1.header["GRATING%.2i" % i] = (grating[i],
-                                               "Grating used for the exposure")
-    hdu_1.header["CENWAVE"] = (central_wavelength,
+            hdu_1.header["GRATING%.2i" % i] = (
+                grating[i],
+                "Grating used for the exposure",
+            )
+    hdu_1.header["CENWAVE"] = (
+        central_wavelength,
         "Central wavelength used for the exposure",
     )
     if fp_pos is not None:
@@ -637,11 +689,9 @@ def generate_spec_hlsp(wavelength, flux, flux_uncertainty, dq_flag, target_name,
     if model_flux is not None:
         hdu_2 = fits.BinTableHDU.from_columns(
             [
-                fits.Column(name="WAVELENGTH", format="D",
-                            array=model_wavelength),
+                fits.Column(name="WAVELENGTH", format="D", array=model_wavelength),
                 fits.Column(name="FLUX", format="D", array=model_flux),
-                fits.Column(name="FLUXERROR", format="D",
-                            array=model_flux_uncertainty),
+                fits.Column(name="FLUXERROR", format="D", array=model_flux_uncertainty),
             ]
         )
         hdu_2.header["DESCRIP"] = ("Simulated spectrum", "Description of data")

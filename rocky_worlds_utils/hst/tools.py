@@ -22,7 +22,7 @@ __all__ = [
     "nearest_index",
     "get_observations",
     "get_stis_lsf",
-    "coadd_flux"
+    "coadd_flux",
 ]
 
 
@@ -48,16 +48,18 @@ def obs_mode_check(datasets, prefix):
         filename = dataset + "_x1d.fits"
         full_file_path = os.path.join(prefix, filename)
         header = fits.getheader(full_file_path)
-        instrument.append(header['INSTRUME'])
-        optical_element.append(header['OPT_ELEM'])
-        central_wavelength.append(header['CENWAVE'])
+        instrument.append(header["INSTRUME"])
+        optical_element.append(header["OPT_ELEM"])
+        central_wavelength.append(header["CENWAVE"])
 
     def _all_elements_equal(lst):
         return all(x == lst[0] for x in lst)
 
-    if (not _all_elements_equal(instrument) or
-            not _all_elements_equal(optical_element) or
-            not _all_elements_equal(central_wavelength)):
+    if (
+        not _all_elements_equal(instrument)
+        or not _all_elements_equal(optical_element)
+        or not _all_elements_equal(central_wavelength)
+    ):
         return False
     else:
         return True  # All lists are uniform and equal
@@ -106,7 +108,9 @@ def get_observations(dataset, save_path, download_references=False):
         requested observing IDs. Default is ``False``.
     """
     if isinstance(dataset, str):
-        obs_id = [dataset, ]
+        obs_id = [
+            dataset,
+        ]
     elif isinstance(dataset, list):
         obs_id = dataset
     else:
@@ -117,8 +121,9 @@ def get_observations(dataset, save_path, download_references=False):
     mast_products = Observations.get_product_list(data_query)
 
     # Download the data
-    Observations.download_products(mast_products, download_dir=save_path,
-                                   project=["CALSTIS", "CALCOS"], flat=True)
+    Observations.download_products(
+        mast_products, download_dir=save_path, project=["CALSTIS", "CALCOS"], flat=True
+    )
 
     if download_references:
         files = glob.glob(dataset + "*")
@@ -159,45 +164,45 @@ def get_stis_lsf(grating, aperture, wavelength_region=1200):
     url_str_head = "https://www.stsci.edu/files/live/sites/www/files/home/hst/instrumentation/stis/performance/spectral-resolution/_documents/"
 
     try:
-        filename = 'LSF_{}_{}.txt'.format(grating, str(wavelength_region))
+        filename = "LSF_{}_{}.txt".format(grating, str(wavelength_region))
         url_str = url_str_head + filename
         lsf_data = np.loadtxt(url_str, skiprows=2)
     except FileNotFoundError:
         try:
             # Sometimes the URL needs to have an extra "LSF/" in it
-            filename = 'LSF/LSF_{}_{}.txt'.format(grating, str(wavelength_region))
+            filename = "LSF/LSF_{}_{}.txt".format(grating, str(wavelength_region))
             url_str = url_str_head + filename
             lsf_data = np.loadtxt(url_str, skiprows=2)
         except FileNotFoundError:
-            raise ValueError('Grating and/or wavelength region not found.')
+            raise ValueError("Grating and/or wavelength region not found.")
 
-    if aperture == '52x0.1':
+    if aperture == "52x0.1":
         col = 1
-    elif aperture == '52x0.2':
+    elif aperture == "52x0.2":
         col = 2
-    elif aperture == '52x0.5':
+    elif aperture == "52x0.5":
         col = 3
-    elif aperture == '52x2.0':
+    elif aperture == "52x2.0":
         col = 4
     else:
-        raise ValueError('Selected aperture not available.')
+        raise ValueError("Selected aperture not available.")
 
     # Figure out the pixel to wavelength conversion
     # These values are very approximate, but should be good enough for LSF
     # convolution given uncertainties of cool star observations
     pixel_to_wavelength = {
-        'G140L': 0.6,  # Angstrom / px
-        'G140M': 0.05,
-        'E140M': 0.0155,
-        'E140H': 0.0061,
-        'G230L': 1.58,
-        'G230M': 0.09,
-        'E230M': 0.039,
-        'E230H': 0.0105,
-        'G430L': 2.73,
-        'G430M': 0.28,
-        'G750L': 4.92,
-        'G750M': 0.56,
+        "G140L": 0.6,  # Angstrom / px
+        "G140M": 0.05,
+        "E140M": 0.0155,
+        "E140H": 0.0061,
+        "G230L": 1.58,
+        "G230M": 0.09,
+        "E230M": 0.039,
+        "E230H": 0.0105,
+        "G430L": 2.73,
+        "G430M": 0.28,
+        "G750L": 4.92,
+        "G750M": 0.56,
     }
 
     lsf_wavelength = lsf_data[:, 0] * pixel_to_wavelength[grating]
@@ -207,8 +212,9 @@ def get_stis_lsf(grating, aperture, wavelength_region=1200):
 
 
 # Combine fluxes of non-contiguous wavelength ranges
-def coadd_flux(flux, gross, sensitivity, exposure_time,
-               poisson_interval="sherpagehrels"):
+def coadd_flux(
+    flux, gross, sensitivity, exposure_time, poisson_interval="sherpagehrels"
+):
     """
     Co-adds fluxes of non-contiguous wavelength ranges.
 
@@ -260,8 +266,7 @@ def coadd_flux(flux, gross, sensitivity, exposure_time,
     total_gross = np.sum(gross, axis=0)
     avg_sens = np.sum(sensitivity, axis=0) / n_ranges
     gross_err_array = (
-            poisson_conf_interval(total_gross, interval=poisson_interval) -
-            total_gross
+        poisson_conf_interval(total_gross, interval=poisson_interval) - total_gross
     )
     total_err_low = -gross_err_array[0] * avg_sens / exposure_time
     total_f_err_up = gross_err_array[1] * avg_sens / exposure_time
