@@ -434,10 +434,10 @@ def plot_lines_hsla(
             velocity = (wavelength - central_wl) / central_wl * _C_SPEED
             i0 = nearest_index(velocity, velocity_range[0])
             i1 = nearest_index(velocity, velocity_range[1])
-            v_plot = velocity[i0 : i1 + 1]
-            wl_plot = wavelength[i0 : i1 + 1]
-            f_plot = flux[i0 : i1 + 1] / scale
-            u_plot = error[i0 : i1 + 1] / scale
+            v_plot = velocity[i0: i1 + 1]
+            wl_plot = wavelength[i0: i1 + 1]
+            f_plot = flux[i0: i1 + 1] / scale
+            u_plot = error[i0: i1 + 1] / scale
             snr = calculate_snr_hsla(wl_plot, f_plot, u_plot)
             ax[row, col].plot(v_plot, f_plot, label=str(snr))
             ax[row, col].set_title(
