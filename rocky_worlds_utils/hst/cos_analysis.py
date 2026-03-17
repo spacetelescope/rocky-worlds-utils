@@ -140,8 +140,6 @@ def timetag_split(
     for time in time_bins:
         time_list += str(time) + ", "
 
-    print(exp_time)
-
     costools.splittag.splittag(
         infiles=tag_filename_a,
         outroot=os.path.join(output_dir, dataset),
@@ -162,7 +160,6 @@ def timetag_split(
         # split_tag.stem prints rootname_split-tag-number_caltype_segment
         # for example: output_dir/ld9m17d3q_1_corrtag_b.fits, the stem would be ld9m17d3q_1_corrtag_b
         basename, ext = os.path.splitext(os.path.basename(split_tag))
-        print(basename.split("_"))
         _, split_tag_number, caltype, segment = basename.split("_")
         new_split_tag_name = (
             "_".join([dataset, split_tag_number, segment, caltype]) + ext
@@ -173,13 +170,20 @@ def timetag_split(
     # Extract the tag-split spectra
     split_list = glob.glob(os.path.join(output_dir, dataset + "_*_*_corrtag.fits"))
     if n_cpus > 1:
+        # CALCOS creates a temporary folder to store temp files while reducing
+        # data. When using multiprocessing, we might run into issues where files
+        # are erased or overwritten by an unrelated process. Thus, for each
+        # process, we create a unique temp folder with 5 random numbers. All
+        # temporary folders are cleaned up after running CALCOS if the user sets
+        # `clean_intermediate_steps` to `True` (default).
         try:
             with multiprocessing.Pool(processes=n_cpus) as pool:
                 _ = pool.starmap(
                     calcos.calcos,
                     [
-                        (subexposure, os.path.join(output_dir,
-                                                   "temp{:0{}d}/".format(np.random.randint(0, 99999), 5)))
+                        (subexposure,
+                         # Output temp folder with unique 5 numbers here
+                         os.path.join(output_dir, "temp{:0{}d}/".format(np.random.randint(0, 99999), 5)))
                         for subexposure in split_list
                     ],
                 )

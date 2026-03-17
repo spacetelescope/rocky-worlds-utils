@@ -133,7 +133,7 @@ def integrate_flux(
     )
     # Take the average gross error for simplicity
     average_gross_error = (-gross_error[0] + gross_error[1]) / 2
-    integrated_error = average_gross_error * mean_sensitivity / exposure_time
+    integrated_error = average_gross_error / exposure_time ** 2 * mean_sensitivity
 
     integrated_flux = full_pixel_flux + fractional_flux_left + fractional_flux_right
 
