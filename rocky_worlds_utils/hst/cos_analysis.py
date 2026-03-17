@@ -118,6 +118,8 @@ def timetag_split(
         raise ValueError("Observation type must be SPECTROSCOPIC.")
     if x1d_header_0["OBSMODE"] != "TIME-TAG":
         raise ValueError("Observing mode must be TIME-TAG.")
+    if x1d_header_0["TARGNAME"] == "WAVE":
+        raise ValueError("Will not split WAVE exposures.")
 
     # Extracting some useful information
     exp_time = x1d_header_1["EXPTIME"]
@@ -137,6 +139,8 @@ def timetag_split(
     time_list = ""
     for time in time_bins:
         time_list += str(time) + ", "
+
+    print(exp_time)
 
     costools.splittag.splittag(
         infiles=tag_filename_a,
