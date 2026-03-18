@@ -13,23 +13,21 @@ from astropy.io import fits
 from astropy.stats import poisson_conf_interval
 from astropy.time import Time
 import numpy as np
-from scipy.integrate import simpson
 import os
 
-__all__ = ["integrate_flux", "read_fits", "generate_light_curve", "generate_lc_hlsp"]
+__all__ = ["integrate_flux", "read_fits", "generate_light_curve",
+           "generate_lc_hlsp"]
 
 
 # This function integrates the flux within a wavelength range for given arrays
 # for wavelength and flux
 def integrate_flux(
-    wavelength_range,
-    wavelength_list,
-    flux_list,
-    gross_list,
-    net_list,
-    exposure_time,
-    poisson_interval="sherpagehrels",
-    return_integrated_gross=False,
+        wavelength_range,
+        wavelength_list,
+        flux_list,
+        net_list,
+        exposure_time,
+        poisson_interval="sherpagehrels"
 ):
     """
     Integrate fluxes from HST STIS and COS spectra within a range of
@@ -48,9 +46,6 @@ def integrate_flux(
     flux_list : ``numpy.ndarray``
         Array containing the flux values of the spectrum.
 
-    gross_list : ``numpy.ndarray``
-        Array containing the gross counts of the spectrum.
-
     net_list : ``numpy.ndarray``
         Array containing the net count rates of the spectrum.
 
@@ -64,10 +59,6 @@ def integrate_flux(
         ``astropy.stats.poisson_conf_interval``). Default value is
         ``'sherpagehrels'``.
 
-    return_integrated_gross : ``bool``, optional
-        Sets whether the function returns the integrated gross and error (in
-        counts) in addition to the flux. Default value is ``False``.
-
     Returns
     -------
     integrated_flux : ``float``
@@ -75,19 +66,12 @@ def integrate_flux(
 
     integrated_error : ``float``
         Uncertainty of the integrated flux.
-
-    integrated_gross : ``float``
-        Integrated gross counts. Returned only if ``return_integrated_gross`` is
-        set to ``True``.
-
-    average_gross_error :
-        Uncertainty of the integrated gross counts. Returned only if
-        ``return_integrated_gross`` is set to ``True``.
     """
     # Raise an error if the user-defined wavelength range is outside of the
     # hard boundaries of the wavelength list
-    if max(wavelength_range) > max(wavelength_list) or min(wavelength_range) < min(
-        wavelength_list
+    if max(wavelength_range) > max(wavelength_list) or min(
+            wavelength_range) < min(
+            wavelength_list
     ):
         raise ValueError(
             "Wavelength_range must be within the boundaries of the wavelength_list."
@@ -96,56 +80,60 @@ def integrate_flux(
     # Since the pixels may not range exactly in the interval above,
     # we will need to deal with fractional pixels. But first, let's
     # integrate the pixels that are fully inside the range
+    net_count_list = net_list * exposure_time
+
+    # At first, we integrate the net counts and later convert them into fluxes
+    # using the sensitivity function. We do this because, in order to calculate
+    # uncertainties in the Poisson counting regime, we need to work on count
+    # space first, and then convert to fluxes.
     full_indexes = np.where(
         (wavelength_list > wavelength_range[0])
         & (wavelength_list < wavelength_range[1])
     )[0]
-    full_pixel_flux = simpson(
-        y=flux_list[full_indexes], x=wavelength_list[full_indexes]
-    )
+    full_pixel_net_counts = np.sum(net_count_list[full_indexes])
 
-    # And now we deal with the flux in the fractional pixels
-    index_left = full_indexes[0]
-    index_right = full_indexes[-1]
-    pixel_width_left = wavelength_list[index_left] - wavelength_list[index_left - 1]
-    fraction_left = (
-        1 - (wavelength_range[0] - wavelength_list[index_left - 1]) / pixel_width_left
-    )
-    pixel_width_right = wavelength_list[index_right + 1] - wavelength_list[index_right]
-    fraction_right = (
-        1 - (wavelength_list[index_right + 1] - wavelength_range[1]) / pixel_width_right
-    )
-    fractional_flux_left = flux_list[index_left - 1] * fraction_left
-    fractional_flux_right = flux_list[index_right + 1] * fraction_right
-
-    # There is a bug in stistools that overestimates errors of time-tag split
-    # subexposures. So we will need to calculate them manually here
-    # based on the raw counts in the extracted spectra. Here we go.
-    full_pixel_gross = np.sum(gross_list[full_indexes])
-    fractional_gross_left = gross_list[index_left - 1] * fraction_left
-    fractional_gross_right = gross_list[index_right + 1] * fraction_right
-    integrated_gross = full_pixel_gross + fractional_gross_left + fractional_gross_right
+    # We will need an estimate of the sensitivity later
     sensitivity = flux_list[full_indexes] / net_list[full_indexes]
     mean_sensitivity = np.nanmean(sensitivity)
-    gross_error = (
-        poisson_conf_interval(integrated_gross, interval=poisson_interval)
-        - integrated_gross
+
+    # And now we deal with the net counts in the fractional pixels
+    index_left = full_indexes[0]
+    index_right = full_indexes[-1]
+    pixel_width_left = wavelength_list[index_left] - wavelength_list[
+        index_left - 1]
+    fraction_left = (
+            1 - (wavelength_range[0] - wavelength_list[
+        index_left - 1]) / pixel_width_left
     )
-    # Take the average gross error for simplicity
-    average_gross_error = (-gross_error[0] + gross_error[1]) / 2
-    integrated_error = average_gross_error / exposure_time * mean_sensitivity
+    pixel_width_right = wavelength_list[index_right + 1] - wavelength_list[
+        index_right]
+    fraction_right = (
+            1 - (wavelength_list[index_right + 1] - wavelength_range[
+        1]) / pixel_width_right
+    )
+    fractional_net_count_left = net_count_list[index_left - 1] * fraction_left
+    fractional_net_count_right = (
+            net_count_list[index_right + 1] * fraction_right)
 
-    integrated_flux = full_pixel_flux + fractional_flux_left + fractional_flux_right
+    # Calculate the total net counts
+    integrated_net_count = (
+            full_pixel_net_counts + fractional_net_count_left +
+            fractional_net_count_right)
 
-    if return_integrated_gross is False:
-        return integrated_flux, integrated_error
-    else:
-        return (
-            integrated_flux,
-            integrated_error,
-            integrated_gross,
-            average_gross_error,
-        )
+    # Calculate the Poisson uncertainties
+    net_count_error = (
+            poisson_conf_interval(np.abs(integrated_net_count),
+                                  interval=poisson_interval)
+            - integrated_net_count
+    )
+    # Take the average net count error for simplicity
+    average_net_count_error = (-net_count_error[0] + net_count_error[1]) / 2
+
+    integrated_error = (
+            average_net_count_error / exposure_time * mean_sensitivity)
+    integrated_flux = integrated_net_count / exposure_time * mean_sensitivity
+
+    return integrated_flux, integrated_error
 
 
 # Read the time-series fits file
@@ -190,7 +178,6 @@ def read_fits(dataset, prefix, target_name=None):
         - `error` (flux density error in  erg / s / cm ** 2 / A)
         - `gross_counts` (gross counts)
         - `net` (net count rate in counts / s)
-        - `background` (background count rate in counts)
     """
     x1d_filename = dataset + "_ts_x1d.fits"
     x1d_filepath = os.path.join(prefix, x1d_filename)
@@ -234,7 +221,6 @@ def read_fits(dataset, prefix, target_name=None):
         error_array = np.zeros(ts_data_shape)
         gross_array = np.zeros(ts_data_shape)
         net_array = np.zeros(ts_data_shape)
-        background_array = np.zeros(ts_data_shape)
 
         # Populate arrays
         for i in range(n_subexposures):
@@ -249,7 +235,6 @@ def read_fits(dataset, prefix, target_name=None):
             error_array[i] += data["ERROR"]
             gross_array[i] += data["GROSS"] * x1d_header_i["EXPTIME"]
             net_array[i] += data["NET"]
-            background_array[i] += data["BACKGROUND"] * x1d_header_i["EXPTIME"]
 
     time_series_dict = {
         "proposal_id": proposal_id,
@@ -273,7 +258,6 @@ def read_fits(dataset, prefix, target_name=None):
         "error": error_array,  # erg / s / cm ** 2 / A
         "gross_counts": gross_array,  # counts
         "net": net_array,  # counts / s
-        "background": background_array  # counts
     }
 
     return time_series_dict
@@ -281,14 +265,13 @@ def read_fits(dataset, prefix, target_name=None):
 
 # Calculate light curve
 def generate_light_curve(
-    dataset,
-    prefix,
-    wavelength_range=None,
-    return_integrated_gross=False,
-    period=None,
-    reference_time=None,
-    baseline_flux=None,
-    poisson_interval="sherpagehrels",
+        dataset,
+        prefix,
+        wavelength_range=None,
+        period=None,
+        reference_time=None,
+        baseline_flux=None,
+        poisson_interval="sherpagehrels",
 ):
     """
     Calculate a light curve for a time-series observation.
@@ -305,10 +288,6 @@ def generate_light_curve(
     wavelength_range : array-like
         List, array or tuple of two floats containing the start and end of the
         wavelength range to be integrated.
-
-    return_integrated_gross : ``bool``, optional
-        Sets whether the function returns the integrated gross and error (in
-        counts) in addition to the flux. Default value is ``False``.
 
     period : ``float``, optional
         Revolution period of the light curve in unit of days. If set, then this
@@ -347,14 +326,6 @@ def generate_light_curve(
         Uncertainties of the flux values of the light curve in
          erg / s / cm ** 2. If  `baseline_flux`` is set, flux values are
          normalized to units of ``baseline_flux``.
-
-    gross : ``float``
-        Integrated gross counts. Returned only if ``return_integrated_gross`` is
-        set to ``True``.
-
-    gross_error :
-        Uncertainty of the integrated gross counts. Returned only if
-        ``return_integrated_gross`` is set to ``True``.
     """
     if isinstance(dataset, str):
         n_dataset = 1
@@ -375,20 +346,15 @@ def generate_light_curve(
     time = np.zeros([n_dataset, n_subexposures])
     flux = np.zeros([n_dataset, n_subexposures])
     flux_error = np.zeros([n_dataset, n_subexposures])
-    gross = np.zeros([n_dataset, n_subexposures])
-    gross_error = np.zeros([n_dataset, n_subexposures])
 
     for row in range(n_dataset):
         for col in range(n_subexposures):
             wavelength = time_series_dict[row]["wavelength"][col]
             flux_density = time_series_dict[row]["flux"][col]
-            gross_counts = time_series_dict[row]["gross_counts"][col]
             net = time_series_dict[row]["net"][col]
             current_exp_time = time_series_dict[row]["exp_time"][col]
             int_flux = 0.0
             int_error_squared = 0.0
-            int_gross = 0.0
-            int_gross_err_squared = 0.0
             time[row, col] = time_series_dict[row]["time_stamp"][col]
             for segment in range(n_segments):
                 # Figure out the wavelength range
@@ -399,57 +365,27 @@ def generate_light_curve(
                 else:
                     current_wavelength_range = wavelength_range
                 try:
-                    if return_integrated_gross is False:
-                        current_int_flux, current_int_error = integrate_flux(
-                            current_wavelength_range,
-                            wavelength[segment],
-                            flux_density[segment],
-                            gross_counts[segment],
-                            net[segment],
-                            current_exp_time,
-                            return_integrated_gross=False,
-                            poisson_interval=poisson_interval,
-                        )
-                        current_int_gross = 0.0
-                        current_gross_err = 0.0
-                    else:
-                        (
-                            current_int_flux,
-                            current_int_error,
-                            current_int_gross,
-                            current_gross_err,
-                        ) = integrate_flux(
-                            current_wavelength_range,
-                            wavelength[segment],
-                            flux_density[segment],
-                            gross_counts[segment],
-                            net[segment],
-                            current_exp_time,
-                            return_integrated_gross=True,
-                            poisson_interval=poisson_interval,
-                        )
+                    current_int_flux, current_int_error = integrate_flux(
+                        current_wavelength_range,
+                        wavelength[segment],
+                        flux_density[segment],
+                        net[segment],
+                        current_exp_time,
+                        poisson_interval=poisson_interval,
+                    )
                 except ValueError:
                     current_int_flux = 0.0
                     current_int_error = 0.0
-                    current_int_gross = 0.0
-                    current_gross_err = 0.0
                 int_flux += current_int_flux
-                int_gross += current_int_gross
-                int_error_squared += current_int_error**2
-                int_gross_err_squared += current_gross_err**2
+                int_error_squared += current_int_error ** 2
             int_error = np.sqrt(int_error_squared)
-            int_gross_error = np.sqrt(int_gross_err_squared)
             flux[row, col] = int_flux
             flux_error[row, col] = int_error
-            gross[row, col] = int_gross
-            gross_error[row, col] = int_gross_error
 
     # Flatten the arrays
     time = time.flatten()
     flux = flux.flatten()
     flux_error = flux_error.flatten()
-    gross = gross.flatten()
-    gross_error = gross_error.flatten()
 
     if period is not None and reference_time is not None:
         phase = ((np.copy(time) - reference_time) / period) % 1.0
@@ -461,22 +397,19 @@ def generate_light_curve(
         flux /= baseline_flux
         flux_error /= baseline_flux
 
-    if return_integrated_gross is False:
-        return time, flux, flux_error
-    else:
-        return time, flux, flux_error, gross, gross_error
+    return time, flux, flux_error
 
 
 # Create an HLSP file for a time series
 def generate_lc_hlsp(
-    dataset,
-    prefix,
-    wavelength_ranges,
-    source_doi,
-    output_dir="./",
-    filename=None,
-    feature_names=None,
-    version="1.0",
+        dataset,
+        prefix,
+        wavelength_ranges,
+        source_doi,
+        output_dir="./",
+        filename=None,
+        feature_names=None,
+        version="1.0",
 ):
     """
     Generate a high-level spectral product for a time-series observation. The
@@ -536,7 +469,8 @@ def generate_lc_hlsp(
     # Compile lists of meta data
     exp_start_list = np.array([d["exp_start"] for d in time_series_dict])[0]
     exp_end_list = np.array([d["exp_end"] for d in time_series_dict])[0]
-    elapsed_time = ((max(exp_end_list) - min(exp_start_list)) * u.d).to(u.s).value
+    elapsed_time = ((max(exp_end_list) - min(exp_start_list)) * u.d).to(
+        u.s).value
     exposure_time = np.sum(np.array([d["exp_time"] for d in time_series_dict]))
 
     # Instantiate the list of HDUs that will be included in the fits file
@@ -555,13 +489,16 @@ def generate_lc_hlsp(
         "ISO-8601 date-time end of the observation",
     )
     hdu_0.header["DOI"] = ("10.17909/qsyr-ny68", "Digital Object Identifier")
-    hdu_0.header["HLSPID"] = ("ROCKY-WORLDS", "Identifier of this HLSP collection")
+    hdu_0.header["HLSPID"] = ("ROCKY-WORLDS",
+                              "Identifier of this HLSP collection")
     hdu_0.header["HLSP_PI"] = (
         "Hannah Diamond-Lowe",
         "Principal Investigator of this HLSP collection",
     )
-    hdu_0.header["HLSPLEAD"] = ("Leonardo dos Santos", "Full name of HLSP project lead")
-    hdu_0.header["HLSPNAME"] = ("Rocky Worlds DDT", "Title of this HLSP project")
+    hdu_0.header["HLSPLEAD"] = ("Leonardo dos Santos",
+                                "Full name of HLSP project lead")
+    hdu_0.header["HLSPNAME"] = ("Rocky Worlds DDT",
+                                "Title of this HLSP project")
     hdu_0.header["HLSPTARG"] = (
         time_series_dict[0]["target"],
         "Designation of the target",
@@ -585,13 +522,16 @@ def generate_lc_hlsp(
         "https://creativecommons.org/licenses/by/4.0/",
         "Data license URL",
     )
-    hdu_0.header["MJD-BEG"] = (min(exp_start_list), "Start of the observation in MJD")
-    hdu_0.header["MJD-END"] = (max(exp_end_list), "End of the observation in MJD")
+    hdu_0.header["MJD-BEG"] = (min(exp_start_list),
+                               "Start of the observation in MJD")
+    hdu_0.header["MJD-END"] = (max(exp_end_list),
+                               "End of the observation in MJD")
     hdu_0.header["MJD-MID"] = (
         (max(exp_end_list) + min(exp_start_list)) / 2,
         "Mid-time of the observation in MJD",
     )
-    hdu_0.header["OBSERVAT"] = ("HST", "Observatory used to obtain this observation")
+    hdu_0.header["OBSERVAT"] = ("HST",
+                                "Observatory used to obtain this observation")
     hdu_0.header["PROPOSID"] = (
         time_series_dict[0]["proposal_id"],
         "Observatory program/proposal identifier",
@@ -637,7 +577,8 @@ def generate_lc_hlsp(
                 fits.Column(name="FLUX", format="D", array=flux_array),
                 fits.Column(name="FLUXERROR", format="D", array=error_array),
                 fits.Column(name="COUNTS", format="D", array=gross_array),
-                fits.Column(name="COUNTSERROR", format="D", array=gross_error_array),
+                fits.Column(name="COUNTSERROR", format="D",
+                            array=gross_error_array),
             ]
         )
         if feature_names is not None:
@@ -684,7 +625,8 @@ def generate_lc_hlsp(
             time_series_dict[0]["fppos"],
             "FP-POS used for the exposure",
         )
-        hdu_1.header["RADESYS"] = ("ICRS", "Celestial coordinate reference system")
+        hdu_1.header["RADESYS"] = ("ICRS",
+                                   "Celestial coordinate reference system")
         hdu_1.header["RA_TARG"] = (
             time_series_dict[0]["ra"],
             "Right Ascension coordinate of the target in deg",
