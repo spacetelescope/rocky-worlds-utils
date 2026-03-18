@@ -118,6 +118,8 @@ def timetag_split(
         raise ValueError("Observation type must be SPECTROSCOPIC.")
     if x1d_header_0["OBSMODE"] != "TIME-TAG":
         raise ValueError("Observing mode must be TIME-TAG.")
+    if x1d_header_0["TARGNAME"] == "WAVE":
+        raise ValueError("Will not split WAVE exposures.")
 
     # Extracting some useful information
     exp_time = x1d_header_1["EXPTIME"]
@@ -158,7 +160,6 @@ def timetag_split(
         # split_tag.stem prints rootname_split-tag-number_caltype_segment
         # for example: output_dir/ld9m17d3q_1_corrtag_b.fits, the stem would be ld9m17d3q_1_corrtag_b
         basename, ext = os.path.splitext(os.path.basename(split_tag))
-        print(basename.split("_"))
         _, split_tag_number, caltype, segment = basename.split("_")
         new_split_tag_name = (
             "_".join([dataset, split_tag_number, segment, caltype]) + ext
@@ -169,19 +170,29 @@ def timetag_split(
     # Extract the tag-split spectra
     split_list = glob.glob(os.path.join(output_dir, dataset + "_*_*_corrtag.fits"))
     if n_cpus > 1:
+        # CALCOS creates a temporary folder to store temp files while reducing
+        # data. When using multiprocessing, we might run into issues where files
+        # are erased or overwritten by an unrelated process. Thus, for each
+        # process, we create a unique temp folder with 5 random numbers. All
+        # temporary folders are cleaned up after running CALCOS if the user sets
+        # `clean_intermediate_steps` to `True` (default).
         try:
             with multiprocessing.Pool(processes=n_cpus) as pool:
                 _ = pool.starmap(
                     calcos.calcos,
                     [
-                        (subexposure, os.path.join(output_dir, "temp/"))
+                        (subexposure,
+                         # Output temp folder with unique 5 numbers here
+                         os.path.join(output_dir, "temp{:0{}d}/".format(np.random.randint(0, 99999), 5)))
                         for subexposure in split_list
                     ],
                 )
         except FileExistsError:
             for subexposure in split_list:
                 os.remove(subexposure)
-            shutil.rmtree(os.path.join(output_dir, "temp/"))
+            remove_temp = glob.glob(os.path.join(output_dir, "temp*/"))
+            for remove_folder in remove_temp:
+                shutil.rmtree(remove_folder)
             raise OSError(
                 "Error encountered during multiprocessing. Temporary "
                 "files were deleted."
@@ -191,13 +202,15 @@ def timetag_split(
             _ = calcos.calcos(subexposure, os.path.join(output_dir, "temp/"))
 
     # Move x1ds to output folder
-    split_list = glob.glob(os.path.join(output_dir, "temp/", dataset + "*_x1d.fits"))
+    split_list = glob.glob(os.path.join(output_dir, "temp*/", dataset + "*_x1d.fits"))
     for subexposure in split_list:
         shutil.move(subexposure, output_dir)
 
     # Clean the intermediate steps files
     if clean_intermediate_steps is True:
-        shutil.rmtree(os.path.join(output_dir, "temp/"))
+        remove_temp = glob.glob(os.path.join(output_dir, "temp*/"))
+        for remove_folder in remove_temp:
+            shutil.rmtree(remove_folder)
     else:
         pass
 

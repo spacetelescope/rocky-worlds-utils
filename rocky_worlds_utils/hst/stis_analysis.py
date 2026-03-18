@@ -13,7 +13,7 @@ import os
 
 from astropy.io import fits
 
-__all__ = ["timetag_split", "extract"]
+__all__ = ["timetag_split", "extract",]
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
@@ -97,6 +97,7 @@ def timetag_split(
     x1d_header_0 = fits.getheader(x1d_filename, 0)
     x1d_header_1 = fits.getheader(x1d_filename, 1)
     x1d_data = fits.getdata(x1d_filename)
+    grating = x1d_header_0['OPT_ELEM']
 
     # Perform some other checks
     if x1d_header_0["OBSTYPE"] != "SPECTROSCOPIC":
@@ -124,44 +125,58 @@ def timetag_split(
         rcount=n_subexposures,
     )
 
-    # And now we run the raw file through calstis, more specifically basic2d,
-    # which does not extract the spectrum yet
-    stistools.basic2d.basic2d(
-        os.path.join(output_dir, dataset + "_ts_raw.fits"),
-        os.path.join(output_dir, dataset + "_ts_flt.fits"),
-    )
+    # For first-order observations!
+    if grating[0] == 'G':
+        # And now we run the raw file through calstis, more specifically
+        # basic2d, which does not extract the spectrum yet
+        stistools.basic2d.basic2d(
+            os.path.join(output_dir, dataset + "_ts_raw.fits"),
+            os.path.join(output_dir, dataset + "_ts_flt.fits"),
+        )
 
-    stistools.wavecal.wavecal(
-        os.path.join(output_dir, dataset + "_ts_flt.fits"),
-        wavecal=os.path.join(prefix, dataset + "_wav.fits"),
-    )
+        stistools.wavecal.wavecal(
+            os.path.join(output_dir, dataset + "_ts_flt.fits"),
+            wavecal=os.path.join(prefix, dataset + "_wav.fits"),
+        )
 
-    # Now we extract the spectrum in the same location as the original full
-    # exposure and turn off the automatic trace finding (set by the maxsrch
-    # parameter)
-    extract_yloc = x1d_data["A2CENTER"][0]
-    extract_size = x1d_data["EXTRSIZE"][0]
-    extract_bk1_size = x1d_data["BK1SIZE"][0]
-    extract_bk2_size = x1d_data["BK2SIZE"][0]
-    extract_bk1_offset = x1d_data["BK1OFFST"][0]
-    extract_bk2_offset = x1d_data["BK2OFFST"][0]
+        # Now we extract the spectrum in the same location as the original full
+        # exposure and turn off the automatic trace finding (set by the maxsrch
+        # parameter)
+        extract_yloc = x1d_data["A2CENTER"][0]
+        extract_size = x1d_data["EXTRSIZE"][0]
+        extract_bk1_size = x1d_data["BK1SIZE"][0]
+        extract_bk2_size = x1d_data["BK2SIZE"][0]
+        extract_bk1_offset = x1d_data["BK1OFFST"][0]
+        extract_bk2_offset = x1d_data["BK2OFFST"][0]
 
-    # Process the time series
-    extract(
-        dataset + "_ts",
-        output_dir,
-        output_dir,
-        extract_yloc,
-        extract_size,
-        extract_bk1_size,
-        extract_bk2_size,
-        extract_bk1_offset,
-        extract_bk2_offset,
-        overwrite,
-    )
+        # Process the time series
+        extract(
+            dataset + "_ts",
+            output_dir,
+            output_dir,
+            extract_yloc,
+            extract_size,
+            extract_bk1_size,
+            extract_bk2_size,
+            extract_bk1_offset,
+            extract_bk2_offset,
+            overwrite,
+        )
+
+    # For Echelle spectra
+    elif grating[0] == 'E':
+        # Simply process using CALSTIS in its entirety without worrying about a
+        # custom extraction
+        stistools.calstis.calstis(
+            os.path.join(output_dir, dataset + "_ts_raw.fits"),
+            wavecal=os.path.join(prefix, dataset + "_wav.fits")
+        )
+
+    else:
+        raise ValueError("This grating is not supported.")
 
     # Clean intermediate steps if requested
-    if clean_intermediate_steps is True:
+    if clean_intermediate_steps:
         os.remove(os.path.join(output_dir, dataset + "_ts_flt.fits"))
         os.remove(os.path.join(output_dir, dataset + "_ts_raw.fits"))
     else:
