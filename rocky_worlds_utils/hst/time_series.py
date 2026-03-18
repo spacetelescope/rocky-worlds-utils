@@ -133,7 +133,7 @@ def integrate_flux(
     )
     # Take the average gross error for simplicity
     average_gross_error = (-gross_error[0] + gross_error[1]) / 2
-    integrated_error = average_gross_error / exposure_time ** 2 * mean_sensitivity
+    integrated_error = average_gross_error / exposure_time * mean_sensitivity
 
     integrated_flux = full_pixel_flux + fractional_flux_left + fractional_flux_right
 
@@ -190,6 +190,7 @@ def read_fits(dataset, prefix, target_name=None):
         - `error` (flux density error in  erg / s / cm ** 2 / A)
         - `gross_counts` (gross counts)
         - `net` (net count rate in counts / s)
+        - `background` (background count rate in counts)
     """
     x1d_filename = dataset + "_ts_x1d.fits"
     x1d_filepath = os.path.join(prefix, x1d_filename)
@@ -233,6 +234,7 @@ def read_fits(dataset, prefix, target_name=None):
         error_array = np.zeros(ts_data_shape)
         gross_array = np.zeros(ts_data_shape)
         net_array = np.zeros(ts_data_shape)
+        background_array = np.zeros(ts_data_shape)
 
         # Populate arrays
         for i in range(n_subexposures):
@@ -247,6 +249,7 @@ def read_fits(dataset, prefix, target_name=None):
             error_array[i] += data["ERROR"]
             gross_array[i] += data["GROSS"] * x1d_header_i["EXPTIME"]
             net_array[i] += data["NET"]
+            background_array[i] += data["BACKGROUND"] * x1d_header_i["EXPTIME"]
 
     time_series_dict = {
         "proposal_id": proposal_id,
@@ -270,6 +273,7 @@ def read_fits(dataset, prefix, target_name=None):
         "error": error_array,  # erg / s / cm ** 2 / A
         "gross_counts": gross_array,  # counts
         "net": net_array,  # counts / s
+        "background": background_array  # counts
     }
 
     return time_series_dict
