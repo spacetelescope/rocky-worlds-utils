@@ -14,6 +14,7 @@ from astropy.stats import poisson_conf_interval
 from astropy.time import Time
 import numpy as np
 import os
+from scipy.integrate import simpson
 
 __all__ = ["integrate_flux", "read_fits", "generate_light_curve",
            "generate_lc_hlsp"]
@@ -27,7 +28,8 @@ def integrate_flux(
         flux_list,
         net_list,
         exposure_time,
-        poisson_interval="sherpagehrels"
+        poisson_interval="sherpagehrels",
+        mask_list=None
 ):
     """
     Integrate fluxes from HST STIS and COS spectra within a range of
@@ -59,6 +61,14 @@ def integrate_flux(
         ``astropy.stats.poisson_conf_interval``). Default value is
         ``'sherpagehrels'``.
 
+    mask_list : ``numpy.ndarray``, optional
+        Array containing the mask to be applied to the spectrum. It must have
+        the same shape as ``flux_list`` and it must contain multiplicative
+        values that represent how much weight should be applied to each pixel
+        of the spectrum. Normally, if one wants to have a binary mask, one would
+        assign values of zeros for fully-masked pixels and ones for non-masked
+        pixels. Default value is ``None`` (no masking).
+
     Returns
     -------
     integrated_flux : ``float``
@@ -66,6 +76,12 @@ def integrate_flux(
 
     integrated_error : ``float``
         Uncertainty of the integrated flux.
+
+    integrated_net : ``float``
+        Integrated net count rate.
+
+    integrated_net_error : ``float``
+        Uncertainty of the integrated net count rate.
     """
     # Raise an error if the user-defined wavelength range is outside of the
     # hard boundaries of the wavelength list
@@ -77,10 +93,13 @@ def integrate_flux(
             "Wavelength_range must be within the boundaries of the wavelength_list."
         )
 
+    if mask_list is None:
+        mask_list = np.ones_like(net_list)
+
     # Since the pixels may not range exactly in the interval above,
     # we will need to deal with fractional pixels. But first, let's
     # integrate the pixels that are fully inside the range
-    net_count_list = net_list * exposure_time
+    net_count_list = net_list * exposure_time * mask_list
 
     # At first, we integrate the net counts and later convert them into fluxes
     # using the sensitivity function. We do this because, in order to calculate
@@ -91,10 +110,6 @@ def integrate_flux(
         & (wavelength_list < wavelength_range[1])
     )[0]
     full_pixel_net_counts = np.sum(net_count_list[full_indexes])
-
-    # We will need an estimate of the sensitivity later
-    sensitivity = flux_list[full_indexes] / net_list[full_indexes]
-    mean_sensitivity = np.nanmean(sensitivity)
 
     # And now we deal with the net counts in the fractional pixels
     index_left = full_indexes[0]
@@ -111,6 +126,8 @@ def integrate_flux(
             1 - (wavelength_list[index_right + 1] - wavelength_range[
         1]) / pixel_width_right
     )
+
+    # Get fractional-pixel net counts
     fractional_net_count_left = net_count_list[index_left - 1] * fraction_left
     fractional_net_count_right = (
             net_count_list[index_right + 1] * fraction_right)
@@ -129,11 +146,24 @@ def integrate_flux(
     # Take the average net count error for simplicity
     average_net_count_error = (-net_count_error[0] + net_count_error[1]) / 2
 
+    # Convert net counts to net count rates
+    integrated_net = integrated_net_count / exposure_time
+    integrated_net_error = average_net_count_error / exposure_time
+
+    sensitivity = flux_list[full_indexes] / net_list[full_indexes]
+    mean_sensitivity = np.nanmean(sensitivity)
+
+    # If mean sensitivity is NaN, it's probably because there were no net counts
+    # registered, so flux should be zero anyway
+    if np.isnan(mean_sensitivity):
+        mean_sensitivity = 0
+
     integrated_error = (
             average_net_count_error / exposure_time * mean_sensitivity)
-    integrated_flux = integrated_net_count / exposure_time * mean_sensitivity
+    integrated_flux = integrated_net * mean_sensitivity
 
-    return integrated_flux, integrated_error
+    return (integrated_flux, integrated_error, integrated_net,
+            integrated_net_error)
 
 
 # Read the time-series fits file
@@ -271,6 +301,7 @@ def generate_light_curve(
         period=None,
         reference_time=None,
         baseline_flux=None,
+        mask_ranges=None,
         poisson_interval="sherpagehrels",
 ):
     """
@@ -326,6 +357,12 @@ def generate_light_curve(
         Uncertainties of the flux values of the light curve in
          erg / s / cm ** 2. If  `baseline_flux`` is set, flux values are
          normalized to units of ``baseline_flux``.
+
+    net : ``numpy.ndarray``
+        Net count rate of the light curve in counts / s.
+
+    net_error : ``numpy.ndarray``
+        Uncertainties of the net count rate of the light curve in counts / s.
     """
     if isinstance(dataset, str):
         n_dataset = 1
@@ -346,15 +383,39 @@ def generate_light_curve(
     time = np.zeros([n_dataset, n_subexposures])
     flux = np.zeros([n_dataset, n_subexposures])
     flux_error = np.zeros([n_dataset, n_subexposures])
+    net = np.zeros([n_dataset, n_subexposures])
+    net_error = np.zeros([n_dataset, n_subexposures])
 
     for row in range(n_dataset):
         for col in range(n_subexposures):
             wavelength = time_series_dict[row]["wavelength"][col]
             flux_density = time_series_dict[row]["flux"][col]
-            net = time_series_dict[row]["net"][col]
+            net_rate = time_series_dict[row]["net"][col]
             current_exp_time = time_series_dict[row]["exp_time"][col]
+
+            # Deal with masking wavelength ranges
+            mask_array = np.ones_like(flux_density)
+            if mask_ranges is None:
+                pass
+            else:
+                # Parse the mask_ranges object
+                mask_ranges = np.array(mask_ranges)
+                mask_ranges_shape = mask_ranges.shape
+                if len(mask_ranges_shape) < 2:
+                    mask_ranges = np.array([mask_ranges,])
+                else:
+                    pass
+
+                # Assign zeros to wavelength ranges that the user chose
+                for mask_range in mask_ranges:
+                    mask_array[(wavelength > mask_range[0]) &
+                               (wavelength < mask_range[1])] = 0
+
+            # Start integrating fluxes
             int_flux = 0.0
             int_error_squared = 0.0
+            int_net = 0.0
+            int_net_error_squared = 0.0
             time[row, col] = time_series_dict[row]["time_stamp"][col]
             for segment in range(n_segments):
                 # Figure out the wavelength range
@@ -365,27 +426,40 @@ def generate_light_curve(
                 else:
                     current_wavelength_range = wavelength_range
                 try:
-                    current_int_flux, current_int_error = integrate_flux(
+                    (current_int_flux,
+                     current_int_error,
+                     current_int_net,
+                     current_int_net_error) = integrate_flux(
                         current_wavelength_range,
                         wavelength[segment],
                         flux_density[segment],
-                        net[segment],
+                        net_rate[segment],
                         current_exp_time,
                         poisson_interval=poisson_interval,
+                        mask_list=mask_array[segment]
                     )
                 except ValueError:
                     current_int_flux = 0.0
                     current_int_error = 0.0
+                    current_int_net = 0.0
+                    current_int_net_error = 0.0
                 int_flux += current_int_flux
                 int_error_squared += current_int_error ** 2
+                int_net += current_int_net
+                int_net_error_squared += current_int_net_error ** 2
             int_error = np.sqrt(int_error_squared)
+            int_net_error = np.sqrt(int_net_error_squared)
             flux[row, col] = int_flux
             flux_error[row, col] = int_error
+            net[row, col] = int_net
+            net_error[row, col] = int_net_error
 
     # Flatten the arrays
     time = time.flatten()
     flux = flux.flatten()
     flux_error = flux_error.flatten()
+    net = net.flatten()
+    net_error = net_error.flatten()
 
     if period is not None and reference_time is not None:
         phase = ((np.copy(time) - reference_time) / period) % 1.0
@@ -397,7 +471,7 @@ def generate_light_curve(
         flux /= baseline_flux
         flux_error /= baseline_flux
 
-    return time, flux, flux_error
+    return time, flux, flux_error, net, net_error
 
 
 # Create an HLSP file for a time series

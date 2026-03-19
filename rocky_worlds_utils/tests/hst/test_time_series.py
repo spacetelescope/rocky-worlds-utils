@@ -25,11 +25,10 @@ def test_integrate_flux(exp_flux, exp_flux_err):
 
     wavelength = hdu[1].data["WAVELENGTH"].ravel()
     flux = hdu[1].data["FLUX"].ravel()
-    gross = hdu[1].data["GROSS"].ravel()
     net = hdu[1].data["NET"].ravel()
     exptime = hdu[1].header["EXPTIME"]
 
-    result_flux, result_flux_err = integrate_flux(
+    result_flux, result_flux_err, result_net, result_net_err = integrate_flux(
         (1600.0, 1700.0),
         wavelength,
         flux,
