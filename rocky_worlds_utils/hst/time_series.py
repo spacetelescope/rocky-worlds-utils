@@ -14,7 +14,6 @@ from astropy.stats import poisson_conf_interval
 from astropy.time import Time
 import numpy as np
 import os
-from scipy.integrate import simpson
 
 __all__ = ["integrate_flux", "read_fits", "generate_light_curve",
            "generate_lc_hlsp"]
@@ -334,6 +333,11 @@ def generate_light_curve(
         the returned fluxes are in units of the baseline flux. Default is
         ``None`` (no normalization).
 
+    mask_ranges : array-like, optional
+        List, array or tuple of shape (N, 2) containing the start and end of the
+        wavelength range to be masked out of integration. N is the number of
+        ranges to be masked. Default is ``None`` (no masking).
+
     poisson_interval : ``str``, optional
         Poisson confidence interval to use in calculation of errors. The options
         are ``‘root-n’``, ``’root-n-0’``, ``’pearson’``, ``’sherpagehrels’, and
@@ -480,6 +484,7 @@ def generate_lc_hlsp(
         prefix,
         wavelength_ranges,
         source_doi,
+        mask_ranges=None,
         output_dir="./",
         filename=None,
         feature_names=None,
@@ -506,6 +511,11 @@ def generate_lc_hlsp(
 
     source_doi : ``str``
         Source DOI of the observation.
+
+    mask_ranges : array-like, optional
+        List, array or tuple of shape (N, 2) containing the start and end of the
+        wavelength range to be masked out of integration. N is the number of
+        ranges to be masked. Default is ``None`` (no masking).
 
     output_dir : ``str``
         Path to output directory.
@@ -638,9 +648,9 @@ def generate_lc_hlsp(
             wavelength_range = wavelength_ranges
 
         # Calculate light curve
-        time_array, flux_array, error_array, gross_array, gross_error_array = (
+        time_array, flux_array, error_array, net_array, net_error_array = (
             generate_light_curve(
-                dataset, prefix, wavelength_range, return_integrated_gross=True
+                dataset, prefix, wavelength_range, mask_ranges=mask_ranges,
             )
         )
 
@@ -650,9 +660,9 @@ def generate_lc_hlsp(
                 fits.Column(name="TIME", format="D", array=time_array),
                 fits.Column(name="FLUX", format="D", array=flux_array),
                 fits.Column(name="FLUXERROR", format="D", array=error_array),
-                fits.Column(name="COUNTS", format="D", array=gross_array),
-                fits.Column(name="COUNTSERROR", format="D",
-                            array=gross_error_array),
+                fits.Column(name="NET", format="D", array=net_array),
+                fits.Column(name="NETERROR", format="D",
+                            array=net_error_array),
             ]
         )
         if feature_names is not None:
@@ -671,7 +681,7 @@ def generate_lc_hlsp(
             (wavelength_range[0]),
             "Wavelength integration start value",
         )
-        hdu_1.header["WAVE_END"] = (
+        hdu_1.header["WAVEND"] = (
             (wavelength_range[1]),
             "Wavelength integration end value",
         )
