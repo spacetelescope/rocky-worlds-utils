@@ -301,10 +301,13 @@ def generate_light_curve(
         reference_time=None,
         baseline_flux=None,
         mask_ranges=None,
-        poisson_interval="sherpagehrels",
+        poisson_interval="sherpagehrels"
 ):
     """
-    Calculate a light curve for a time-series observation.
+    Calculate a light curve for a time-series observation. Each row of the
+    returned arrays will correspond to a dataset in ``datasets``. It may
+    populate the arrays with ``np.nan`` when there is a non-homogeneous number
+    of subexposures in the time series.
 
     Parameters
     ----------
@@ -380,17 +383,23 @@ def generate_light_curve(
         raise TypeError("Dataset must be a string or a list.")
 
     n_segments = time_series_dict[0]["n_detector_segments"]
-    n_subexposures = len(time_series_dict[0]["time_stamp"])
+
+    # The number of subexposures per exposure can be variable when the temporal
+    # resolution of the time series is fixes, so we set it to the maximum number
+    # of subexposures in the time series
+    max_n_subexposures = max([len(tsd["time_stamp"]) for tsd in time_series_dict])
 
     # We are going to integrate fluxes within the wavelength range for each
-    # segment, each subexposure, and each dataset
-    time = np.zeros([n_dataset, n_subexposures])
-    flux = np.zeros([n_dataset, n_subexposures])
-    flux_error = np.zeros([n_dataset, n_subexposures])
-    net = np.zeros([n_dataset, n_subexposures])
-    net_error = np.zeros([n_dataset, n_subexposures])
+    # segment, each subexposure, and each dataset. We instantiate the arrays
+    # full of NaNs
+    time = np.full([n_dataset, max_n_subexposures], np.nan)
+    flux = np.full([n_dataset, max_n_subexposures], np.nan)
+    flux_error = np.full([n_dataset, max_n_subexposures], np.nan)
+    net = np.full([n_dataset, max_n_subexposures], np.nan)
+    net_error = np.full([n_dataset, max_n_subexposures], np.nan)
 
     for row in range(n_dataset):
+        n_subexposures = len(time_series_dict[row]["time_stamp"])
         for col in range(n_subexposures):
             wavelength = time_series_dict[row]["wavelength"][col]
             flux_density = time_series_dict[row]["flux"][col]
@@ -458,13 +467,6 @@ def generate_light_curve(
             net[row, col] = int_net
             net_error[row, col] = int_net_error
 
-    # Flatten the arrays
-    time = time.flatten()
-    flux = flux.flatten()
-    flux_error = flux_error.flatten()
-    net = net.flatten()
-    net_error = net_error.flatten()
-
     if period is not None and reference_time is not None:
         phase = ((np.copy(time) - reference_time) / period) % 1.0
         # Center around 0
@@ -486,6 +488,7 @@ def generate_lc_hlsp(
         source_doi,
         mask_ranges=None,
         output_dir="./",
+        visit_number='auto',
         filename=None,
         feature_names=None,
         version="1.0",
@@ -520,9 +523,14 @@ def generate_lc_hlsp(
     output_dir : ``str``
         Path to output directory.
 
+    visit_number : ``str``, optional
+        Sets the visit number that will define the filename. If set to
+        ``'auto'``, will try to parse the visit number from the dataset strings.
+        Default is ``'auto'``.
+
     filename : ``str``, optional
         Output filename. If ``None``, then the output filename will be
-        ``hlsp_rocky-worlds_hst_[instrument]_[target]_[grating]_v[version]_lc.fits``.
+        ``hlsp_rocky-worlds_hst_[instrument]_[target]_[grating]_visit[visit_number]_v[version]_lc.fits``.
         Default is ``None``.
 
     feature_names : ``str`` or ``list``, optional
@@ -544,7 +552,7 @@ def generate_lc_hlsp(
             read_fits(dataset, prefix),
         ]
     elif isinstance(dataset, list):
-        time_series_dict = [read_fits(dataset, prefix) for dataset in dataset]
+        time_series_dict = [read_fits(ds, prefix) for ds in dataset]
     else:
         raise TypeError("Dataset must be a string or a list.")
 
@@ -654,15 +662,28 @@ def generate_lc_hlsp(
             )
         )
 
+        time_series_shape = np.shape(time_array)
+        n_subexposures = time_series_shape[1]
+        format_string = str(n_subexposures) + "D"
+
+        # Set units
+        time_unit = 'MJD'
+        flux_unit = str(u.erg / (u.s * u.cm ** 2 * u.AA))
+        net_unit = 'count / s'
+
         # Set the light curve meta data
         hdu_1 = fits.BinTableHDU.from_columns(
             [
-                fits.Column(name="TIME", format="D", array=time_array),
-                fits.Column(name="FLUX", format="D", array=flux_array),
-                fits.Column(name="FLUXERROR", format="D", array=error_array),
-                fits.Column(name="NET", format="D", array=net_array),
-                fits.Column(name="NETERROR", format="D",
-                            array=net_error_array),
+                fits.Column(name="TIME", format=format_string,
+                            array=time_array, unit=time_unit),
+                fits.Column(name="FLUX", format=format_string,
+                            array=flux_array, unit=flux_unit),
+                fits.Column(name="FLUXERROR", format=format_string,
+                            array=error_array, unit=flux_unit),
+                fits.Column(name="NET", format=format_string, array=net_array,
+                            unit=net_unit),
+                fits.Column(name="NETERROR", format=format_string,
+                            array=net_error_array, unit=net_unit),
             ]
         )
         if feature_names is not None:
@@ -719,12 +740,25 @@ def generate_lc_hlsp(
         # Add the data HDU to the list
         hdu_list.append(hdu_1)
 
+    if visit_number == 'auto':
+        # Try to parse visit number from the dataset strings
+        visit_strings = np.array([ds[4:6] for ds in dataset])
+        unique_strings = np.unique(visit_strings)
+        n_unique_strings = len(unique_strings)
+        if n_unique_strings == 1:
+            visit_number = unique_strings[0]
+        else:
+            visit_number = '+'.join(unique_strings)
+    else:
+        pass
+
     # Finally create the corresponding FITS file
     if filename is None:
-        filename = "hlsp_rocky-worlds_hst_{}_{}_{}_v{}_lc.fits".format(
+        filename = "hlsp_rocky-worlds_hst_{}_{}_{}_visit{}_v{}_lc.fits".format(
             time_series_dict[0]["instrument"].lower(),
             time_series_dict[0]["target"].lower(),
             time_series_dict[0]["grating"].lower(),
+            visit_number,
             version,
         )
     else:
