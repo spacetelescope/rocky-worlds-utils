@@ -551,11 +551,11 @@ def generate_lc_hlsp(
     # First, we deal with the Primary extension material
 
     # Compile lists of meta data
-    exp_start_list = np.array([d["exp_start"] for d in time_series_dict])[0]
-    exp_end_list = np.array([d["exp_end"] for d in time_series_dict])[0]
+    exp_start_list = np.array([d["exp_start"][0] for d in time_series_dict])
+    exp_end_list = np.array([d["exp_end"][-1] for d in time_series_dict])
     elapsed_time = ((max(exp_end_list) - min(exp_start_list)) * u.d).to(
         u.s).value
-    exposure_time = np.sum(np.array([d["exp_time"] for d in time_series_dict]))
+    exposure_time = sum([d["exp_time"].sum() for d in time_series_dict])
 
     # Instantiate the list of HDUs that will be included in the fits file
     hdu_list = []
