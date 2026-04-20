@@ -457,7 +457,6 @@ def generate_spec_hlsp(
     wavelength,
     flux,
     flux_uncertainty,
-    dq_flag,
     target_name,
     start_mjd,
     end_mjd,
@@ -494,9 +493,6 @@ def generate_spec_hlsp(
 
     flux_uncertainty : ``numpy.ndarray``
         Flux uncertainty array in units of erg/s/cm^2/Angstrom.
-
-    dq_flag : ``numpy.ndarray``
-        Data quality flags array.
 
     target_name : ``str``
         Target name.
@@ -650,8 +646,7 @@ def generate_spec_hlsp(
                 format="D",
                 array=flux_uncertainty,
                 unit="erg/s/cm**2/Angstrom",
-            ),
-            fits.Column(name="DQ", format="D", array=dq_flag),
+            )
         ]
     )
 
@@ -701,10 +696,14 @@ def generate_spec_hlsp(
         hdu_list = [hdu_0, hdu_1]
 
     if filename is None:
+        if len(grating) > 5:
+            grating_str = 'multi'
+        else:
+            grating_str = grating.lower()
         filename = "hlsp_rocky-worlds_hst_{}_{}_{}_v{}_spec.fits".format(
             instrument.lower(),
             (target_name.lower()).replace("-", ""),
-            grating.lower(),
+            grating_str,
             version,
         )
     else:
