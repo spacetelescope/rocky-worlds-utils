@@ -754,11 +754,11 @@ def generate_lc_hlsp(
 
     # Finally create the corresponding FITS file
     if filename is None:
-        filename = "hlsp_rocky-worlds_hst_{}_{}_{}_visit{}_v{}_lc.fits".format(
+        filename = "hlsp_rocky-worlds_hst_{}_{}-visit{}_{}_v{}_lc.fits".format(
             time_series_dict[0]["instrument"].lower(),
             time_series_dict[0]["target"].lower(),
-            time_series_dict[0]["grating"].lower(),
             visit_number,
+            time_series_dict[0]["grating"].lower(),
             version,
         )
     else:
