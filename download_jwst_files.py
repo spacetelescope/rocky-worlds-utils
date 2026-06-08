@@ -313,10 +313,28 @@ def main():
         if visit is None:
             raise ValueError(f"Visit with observation={obs_id} not found")
 
-        visit_id = int(visit.attrib['visit'])
-        status = visit.findtext("status", default="N/A")
-        if status != "Executed":
-            raise ValueError(f"Observation {obs_id} is not 'Executed'")
+        visit_id = int(visit.attrib["visit"])
+        status = visit.findtext("status", default="N/A").strip()
+
+        log(
+            "[INFO]",
+            CYAN,
+            (
+                f"Matched observation={obs_id}, visit={visit_id}, "
+                f"status={status!r}, attributes={visit.attrib}"
+            ),
+        )
+
+        if status not in {"Executed", "Archived"}:
+            log(
+                "[WARNING]",
+                YELLOW,
+                (
+                    f"Observation {obs_id}, visit {visit_id} has visit-status "
+                    f"{status!r}; continuing because MAST availability will be "
+                    "checked directly."
+                ),
+            )
 
         log("[INFO]", CYAN,
             f"Processing observation {obs_id} into {output_dir}")
