@@ -82,3 +82,4 @@ data/
 tests.ipynb
 .DS_Store
 www.stsci.edu/
+.vscode/settings.json

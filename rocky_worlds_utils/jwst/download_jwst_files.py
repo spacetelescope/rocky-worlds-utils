@@ -8,10 +8,16 @@ import argparse
 import requests
 import xml.etree.ElementTree as ET
 from contextlib import contextmanager
-from astroquery.mast import Observations
+from astroquery.mast import MastMissions
 
 
 MAX_RETRIES = 3
+
+# Use the JWST-specific MAST Search API rather than the CAOM-backed
+# multi-mission API.  This makes newly archived JWST products available as
+# soon as they reach the archive and keeps level 2 and level 3 datasets
+# separate.
+jwst_mast = MastMissions(mission="jwst")
 
 # Auto-disable colors if stdout is redirected
 USE_COLOR = sys.stdout.isatty()
@@ -136,38 +142,26 @@ def query_MAST(proposal_id, observation_id, visit_id, subgroup='UNCAL'):
     observation_id = str(observation_id).zfill(3)
     visit_id = str(visit_id).zfill(3)
 
-    # Determine calibration level based on subgroup
-    if subgroup in ['UNCAL', 'GS-ACQ1', 'GS-ACQ2', 'GS-FG', 'GS-ID', 'GS-TRACK']:
-        calib_level = [1]
-    elif subgroup in ['CAL', 'CALINTS', 'RATE', 'RATEINTS', 'ANNNN_CRFINTS',
-                      'GS-ACQ1', 'GS-ACQ2', 'GS-FG', 'GS-ID', 'GS-TRACK', 'RAMP']:
-        calib_level = [2]
-    elif subgroup in ['X1DINTS', 'WHTLT']:
-        calib_level = [3]
-    else:
-        raise ValueError(f"Unknown subgroup: {subgroup}")
-
-    obs_id = f'jw{proposal_id}{observation_id}{visit_id}_03101*'
-
-    sci_table = Observations.query_criteria(proposal_id=proposal_id,
-                                            obs_id=obs_id)
+    sci_table = jwst_mast.query_criteria(program=int(proposal_id),
+                                         observtn=int(observation_id),
+                                         visit=int(visit_id))
     if len(sci_table) == 0:
         raise ValueError(f"No data found for proposal {proposal_id}, "
                          f"observation {observation_id}, visit {visit_id}")
 
-    data_products = Observations.get_product_list(sci_table)
-    table = Observations.filter_products(data_products,
-                                         productSubGroupDescription=subgroup,
-                                         calib_level=calib_level)
+    data_products = jwst_mast.get_product_list(sci_table)
+    file_suffix = f"_{subgroup.lower()}"
+    table = jwst_mast.filter_products(data_products,
+                                      file_suffix=file_suffix,
+                                      extension=".fits")
 
     if len(table) == 0:
-        raise ValueError(f"No data found for subgroup {subgroup}, "
-                         f"calib_level {calib_level}")
+        raise ValueError(f"No data found for subgroup {subgroup}")
 
-    if 'dataURI' not in table.colnames:
-        raise ValueError("No dataURI column found. No downloadable files.")
+    if 'filename' not in table.colnames:
+        raise ValueError("No filename column found. No downloadable files.")
 
-    table.sort('dataURI')
+    table.sort('filename')
     return table
 
 
@@ -216,7 +210,7 @@ def download_files(proposal_id, obs_id, visit_id, download_dir,
     all_success = True
 
     for product in table:
-        filename = os.path.basename(product["productFilename"])
+        filename = os.path.basename(product["filename"])
 
         if dry_run:
             log("[DRY-RUN]", YELLOW,
@@ -226,13 +220,13 @@ def download_files(proposal_id, obs_id, visit_id, download_dir,
         # Retry logic with exponential backoff
         for attempt in range(1, max_retries + 1):
             try:
-                manifest = Observations.download_products(
+                manifest = jwst_mast.download_products(
                     product, download_dir=download_dir, flat=flat)
                 entry = manifest[0]
                 if (entry["Message"] and
                         entry["Message"].startswith("HTTPError")):
-                    Observations.login()
-                    manifest = Observations.download_products(
+                    jwst_mast.login()
+                    manifest = jwst_mast.download_products(
                         product, download_dir=download_dir, flat=flat)
                     entry = manifest[0]
                 if entry["Status"] == "COMPLETE":
