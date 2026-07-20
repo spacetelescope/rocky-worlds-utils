@@ -12,6 +12,7 @@ from astroquery.mast import MastMissions
 
 
 MAX_RETRIES = 3
+DEFAULT_RETRY_SECONDS = 600
 
 # Use the JWST-specific MAST Search API rather than the CAOM-backed
 # multi-mission API.  This makes newly archived JWST products available as
@@ -115,6 +116,60 @@ def log(tag, color_code, message):
     """
     padded_tag = f"{color_code}{tag:<{TAG_WIDTH}}{RESET}"
     print(f"{padded_tag} {message}", flush=True)
+
+
+def positive_integer(value):
+    """Return a positive integer for an argparse option."""
+    integer = int(value)
+    if integer < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return integer
+
+
+def nonnegative_integer(value):
+    """Return a non-negative integer for an argparse option."""
+    integer = int(value)
+    if integer < 0:
+        raise argparse.ArgumentTypeError("must be a non-negative integer")
+    return integer
+
+
+def is_data_unavailable_error(error):
+    """Return whether a MAST query failed only because data are unavailable."""
+    return isinstance(error, ValueError) and str(error).startswith("No data found for ")
+
+
+def retry_data_unavailable(operation, retry_seconds=DEFAULT_RETRY_SECONDS,
+                           max_attempts=0):
+    """Retry an operation while MAST reports that data are not available yet.
+
+    Parameters
+    ----------
+    operation : callable
+        Operation to run.
+    retry_seconds : int
+        Number of seconds to wait between attempts.
+    max_attempts : int
+        Maximum total attempts. Zero retries indefinitely.
+    """
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            return operation()
+        except KeyboardInterrupt:
+            raise
+        except Exception as error:
+            if not is_data_unavailable_error(error):
+                raise
+
+            if max_attempts and attempt >= max_attempts:
+                raise
+
+            log("[RETRY]", YELLOW,
+                f"{error}; retrying in {retry_seconds} seconds "
+                f"(attempt {attempt + 1})")
+            time.sleep(retry_seconds)
 
 
 def query_MAST(proposal_id, observation_id, visit_id, subgroup='UNCAL'):
@@ -249,31 +304,8 @@ def download_files(proposal_id, obs_id, visit_id, download_dir,
     return all_success
 
 
-def main():
-    """
-    Entry point to parse arguments and orchestrate directory setup and downloads.
-    """
-    parser = argparse.ArgumentParser(
-        description="Download JWST _uncal and _rateints files from MAST "
-                    "for a given proposal/visit. "
-                    "Creates organized, group-writable directories.")
-
-    parser.add_argument("planet_name", type=str,
-                        help="Target planet name, e.g., GJ3929b")
-    parser.add_argument("proposal_id", type=int,
-                        help="JWST proposal number (e.g., 9235)")
-    parser.add_argument("observation_ids", type=str,
-                        help="Comma-separated observation IDs (e.g., 1 or 4,5)")
-    parser.add_argument("visit_id", type=int,
-                        help="Visit ID to label output directories")
-    parser.add_argument("--base_dir", default="../JWST/",
-                        help="Root directory under which data is organized")
-    parser.add_argument("-q", "--quiet", action="store_true",
-                        help="Suppress progress output")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Show actions without performing them")
-    args = parser.parse_args()
-
+def download_visit(args):
+    """Download the requested JWST visit using parsed command-line arguments."""
     planet_name = args.planet_name.strip()
     proposal_id = args.proposal_id
     observation_ids = [int(x.strip())
@@ -356,6 +388,42 @@ def main():
     else:
         log("[DONE]", RED, "Some downloads failed.")
         sys.exit(1)
+
+
+def main():
+    """Parse command-line arguments and download the requested JWST visit."""
+    parser = argparse.ArgumentParser(
+        description="Download JWST _uncal and _rateints files from MAST "
+                    "for a given proposal/visit. "
+                    "Creates organized, group-writable directories.")
+
+    parser.add_argument("planet_name", type=str,
+                        help="Target planet name, e.g., GJ3929b")
+    parser.add_argument("proposal_id", type=int,
+                        help="JWST proposal number (e.g., 9235)")
+    parser.add_argument("observation_ids", type=str,
+                        help="Comma-separated observation IDs (e.g., 1 or 4,5)")
+    parser.add_argument("visit_id", type=int,
+                        help="Visit ID to label output directories")
+    parser.add_argument("--base_dir", default="../JWST/",
+                        help="Root directory under which data is organized")
+    parser.add_argument("-q", "--quiet", action="store_true",
+                        help="Suppress progress output")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Show actions without performing them")
+    parser.add_argument("--retry-seconds", type=positive_integer,
+                        default=DEFAULT_RETRY_SECONDS,
+                        help="Wait between retries when MAST data are unavailable "
+                             f"(default: {DEFAULT_RETRY_SECONDS})")
+    parser.add_argument("--max-attempts", type=nonnegative_integer, default=0,
+                        help="Maximum attempts when MAST data are unavailable; "
+                             "0 retries indefinitely (default: 0)")
+    args = parser.parse_args()
+    retry_data_unavailable(
+        lambda: download_visit(args),
+        retry_seconds=args.retry_seconds,
+        max_attempts=args.max_attempts,
+    )
 
 
 if __name__ == "__main__":
