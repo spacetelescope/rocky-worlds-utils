@@ -419,6 +419,10 @@ def main():
                         help="Maximum attempts when MAST data are unavailable; "
                              "0 retries indefinitely (default: 0)")
     args = parser.parse_args()
+    if args.dry_run:
+        download_visit(args)
+        return
+
     retry_data_unavailable(
         lambda: download_visit(args),
         retry_seconds=args.retry_seconds,

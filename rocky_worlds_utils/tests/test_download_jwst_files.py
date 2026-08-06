@@ -1,5 +1,6 @@
 """Tests for the JWST-specific MAST download helper."""
 
+import sys
 from unittest.mock import Mock
 
 from astropy.table import Table
@@ -54,3 +55,21 @@ def test_retry_data_unavailable_stops_on_other_errors():
         download_jwst_files.retry_data_unavailable(operation, retry_seconds=1)
 
     operation.assert_called_once()
+
+
+def test_dry_run_does_not_enter_data_availability_retry_loop(monkeypatch):
+    """A dry run performs one query rather than sleeping and retrying."""
+    download_visit = Mock()
+    retry = Mock()
+    monkeypatch.setattr(download_jwst_files, "download_visit", download_visit)
+    monkeypatch.setattr(download_jwst_files, "retry_data_unavailable", retry)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["download_jwst_files.py", "GJ3929b", "9235", "1", "1", "--dry-run"],
+    )
+
+    download_jwst_files.main()
+
+    retry.assert_not_called()
+    assert download_visit.call_args.args[0].dry_run
