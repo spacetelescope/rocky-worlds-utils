@@ -70,6 +70,9 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# VS Code
+*.code-workspace
+
 # pyenv
 .python-version
 
@@ -79,3 +82,4 @@ data/
 tests.ipynb
 .DS_Store
 www.stsci.edu/
+.vscode/settings.json
