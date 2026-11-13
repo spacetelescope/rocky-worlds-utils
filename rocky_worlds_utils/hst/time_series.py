@@ -157,9 +157,12 @@ def integrate_flux(
     if np.isnan(mean_sensitivity):
         mean_sensitivity = 0
 
+    average_delta_wavelength = np.mean(np.diff(wavelength_list[full_indexes]))
     integrated_error = (
-            average_net_count_error / exposure_time * mean_sensitivity)
-    integrated_flux = integrated_net * mean_sensitivity
+            average_net_count_error / exposure_time * mean_sensitivity
+            * average_delta_wavelength)
+    integrated_flux = (
+            integrated_net * mean_sensitivity * average_delta_wavelength)
 
     return (integrated_flux, integrated_error, integrated_net,
             integrated_net_error)
