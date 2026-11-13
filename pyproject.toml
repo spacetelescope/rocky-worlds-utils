@@ -28,6 +28,7 @@ dependencies = [
     "scipy>=1.15.2",
     "stistools>=1.4.5",
     "xarray>=2025.9.0",
+    "specutils>2.2.0",
 ]
 
 dynamic = ["version"]
