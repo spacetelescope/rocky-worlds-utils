@@ -297,14 +297,3 @@ def timetag_split(
         remove_list = glob.glob(os.path.join(output_dir, dataset + "_*_corrtag_*.fits"))
         for item in remove_list:
             os.remove(item)
-
-
-# Re-extract the COS x1d spectrum
-def extract(
-    dataset,
-    prefix,
-    output_dir,
-    extraction_centers,
-    extraction_heights
-    ):
-    pass

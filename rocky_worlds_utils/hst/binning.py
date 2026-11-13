@@ -106,8 +106,8 @@ def fixed_bin_width(wavelength, flux, flux_error, bin_width=1.0):
         wavelength_start = int(min(wavelength)) + 1
     wavelength_stop = int(max(wavelength))
     binned_wavelength = np.arange(wavelength_start + bin_width / 2,
-                                      wavelength_stop - bin_width / 2,
-                                      bin_width)
+                                  wavelength_stop - bin_width / 2,
+                                  bin_width)
     resampler = FluxConservingResampler()
     new_spec = resampler(input_spec, binned_wavelength * wave_unit)
     binned_flux = new_spec.flux.value

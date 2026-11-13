@@ -116,31 +116,32 @@ def integrate_flux(
     pixel_width_left = wavelength_list[index_left] - wavelength_list[
         index_left - 1]
     fraction_left = (
-            1 - (wavelength_range[0] - wavelength_list[
-        index_left - 1]) / pixel_width_left
+        1 - (wavelength_range[0] - wavelength_list[index_left - 1])
+        / pixel_width_left
     )
     pixel_width_right = wavelength_list[index_right + 1] - wavelength_list[
         index_right]
     fraction_right = (
-            1 - (wavelength_list[index_right + 1] - wavelength_range[
-        1]) / pixel_width_right
+        1 - (wavelength_list[index_right + 1] - wavelength_range[1])
+        / pixel_width_right
     )
 
     # Get fractional-pixel net counts
     fractional_net_count_left = net_count_list[index_left - 1] * fraction_left
     fractional_net_count_right = (
-            net_count_list[index_right + 1] * fraction_right)
+        net_count_list[index_right + 1] * fraction_right)
 
     # Calculate the total net counts
     integrated_net_count = (
-            full_pixel_net_counts + fractional_net_count_left +
-            fractional_net_count_right)
+        full_pixel_net_counts + fractional_net_count_left
+        + fractional_net_count_right
+    )
 
     # Calculate the Poisson uncertainties
     net_count_error = (
-            poisson_conf_interval(np.abs(integrated_net_count),
-                                  interval=poisson_interval)
-            - integrated_net_count
+        poisson_conf_interval(np.abs(integrated_net_count),
+                              interval=poisson_interval)
+        - integrated_net_count
     )
     # Take the average net count error for simplicity
     average_net_count_error = (-net_count_error[0] + net_count_error[1]) / 2
@@ -159,10 +160,12 @@ def integrate_flux(
 
     average_delta_wavelength = np.mean(np.diff(wavelength_list[full_indexes]))
     integrated_error = (
-            average_net_count_error / exposure_time * mean_sensitivity
-            * average_delta_wavelength)
+        average_net_count_error / exposure_time * mean_sensitivity
+        * average_delta_wavelength
+    )
     integrated_flux = (
-            integrated_net * mean_sensitivity * average_delta_wavelength)
+        integrated_net * mean_sensitivity * average_delta_wavelength
+    )
 
     return (integrated_flux, integrated_error, integrated_net,
             integrated_net_error)
@@ -424,8 +427,8 @@ def generate_light_curve(
 
                 # Assign zeros to wavelength ranges that the user chose
                 for mask_range in mask_ranges:
-                    mask_array[(wavelength > mask_range[0]) &
-                               (wavelength < mask_range[1])] = 0
+                    mask_array[(wavelength > mask_range[0])
+                               & (wavelength < mask_range[1])] = 0
 
             # Start integrating fluxes
             int_flux = 0.0

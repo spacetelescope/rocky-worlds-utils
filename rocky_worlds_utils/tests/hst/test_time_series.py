@@ -19,8 +19,6 @@ from rocky_worlds_utils.hst.time_series import integrate_flux, read_fits
         ),
     ],
 )
-
-
 def test_integrate_flux(exp_flux, exp_flux_err, exp_net, exp_net_err):
     filename = os.path.join(os.getcwd(), "lcil2ajnq_x1d.fits")
     hdu = fits.open(filename)
@@ -37,10 +35,10 @@ def test_integrate_flux(exp_flux, exp_flux_err, exp_net, exp_net_err):
         net,
         exptime,
     )
-    assert (np.isclose(result_flux, exp_flux) &
-            np.isclose(result_flux_err, exp_flux_err) &
-            np.isclose(result_net, exp_net) &
-            np.isclose(result_net_err, exp_net_err))
+    assert (np.isclose(result_flux, exp_flux)
+            & np.isclose(result_flux_err, exp_flux_err)
+            & np.isclose(result_net, exp_net)
+            & np.isclose(result_net_err, exp_net_err))
 
 
 @pytest.mark.order(

@@ -48,7 +48,7 @@ _KEY_LINE_CENTERS = [
     [1238.8, 1242.8, 1371.3, 1145.6],
 ]
 _GEOCORONA_LINE_CENTERS = [
-    1134.415, # 1200.223, # N I Lines
+    1134.415,  # 1200.223, # N I Lines
     1302.168, 1304.858, 1306.029,  # O I Lines
     1215.6701  # H I line
 ]
