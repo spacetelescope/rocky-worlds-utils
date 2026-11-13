@@ -398,8 +398,8 @@ def add_lya(obs_wavelength, obs_flux, obs_error, lya_model_wavelength,
     flux_unit = u.erg / (u.s * u.cm ** 2 * u.AA)
     wave_unit = u.AA
     wavelength_window = 1215.6702 + np.array([-line_width / 2, line_width / 2])
-    ind = np.where((obs_wavelength > wavelength_window[0]) & (
-            obs_wavelength < wavelength_window[1]))
+    ind = np.where((obs_wavelength > wavelength_window[0])
+                   & (obs_wavelength < wavelength_window[1]))
 
     # Bin the model to the observed wavelength grid while conserving the flux
     # using specutils
