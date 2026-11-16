@@ -21,6 +21,7 @@ from astropy.io import fits
 
 __all__ = [
     "timetag_split",
+    "extract"
 ]
 
 
@@ -30,6 +31,7 @@ print(
         __N_PROCESSES
     )
 )
+__LREF = os.environ["lref"]
 
 
 # Divide exposures into sub-exposures for TIME-TAG data and process them
@@ -42,6 +44,7 @@ def timetag_split(
     clean_intermediate_steps=True,
     overwrite=False,
     output_file_name=None,
+    extraction_algorithm="BOXCAR",
     n_cpus=__N_PROCESSES,
 ):
     """
@@ -79,6 +82,11 @@ def timetag_split(
         Sets the name of the output file. If set, it must contain the extension
         ``.fits``. If ``None``, then the default output file name is
         ``[dataset]_ts_x1d.fits``. Default is ``None``.
+
+    extraction_algorithm : ``str``, optional
+        Spectral extraction algorithm to be used in CALCOS. The options are
+        either ``'TWOZONE'`` or ``'BOXCAR'``. Default is ``'BOXCAR'`` (note that
+        this is different from the default of CALCOS, which is TWOZONE).
 
     n_cpus : ``int``, optional
         Number of CPU cores to use in data reduction. Default is the maximum
@@ -155,6 +163,19 @@ def timetag_split(
     # Some hack necessary to avoid IO error when using x1dcorr
     split_list = glob.glob(os.path.join(output_dir, dataset + "_*_corrtag_*.fits"))
     for split_tag in split_list:
+        # First, we set the extraction algorithm
+        with fits.open(split_tag, mode='update') as hdul:
+            header = hdul[0].header
+            header['XTRCTALG'] = extraction_algorithm
+            if extraction_algorithm == "BOXCAR":
+                header['TRCECORR'] = 'OMIT'
+                header['ALGNCORR'] = 'OMIT'
+            elif extraction_algorithm == "TWOZONE":
+                header['TRCECORR'] = 'PERFORM'
+                header['ALGNCORR'] = 'PERFORM'
+            else:
+                raise ValueError('Extraction algorithm must be BOXCAR or '
+                                 'TWOZONE.')
         # This loop will rename datasets in the output directory by swapping corrtag and segment
         # example ld9m17d3q_1_corrtag_b.fits ----> ld9m17d3q_1_b_corrtag.fits
         # split_tag.stem prints rootname_split-tag-number_caltype_segment
@@ -207,10 +228,10 @@ def timetag_split(
         shutil.move(subexposure, output_dir)
 
     # Clean the intermediate steps files
-    if clean_intermediate_steps is True:
+    if clean_intermediate_steps:
         remove_temp = glob.glob(os.path.join(output_dir, "temp*/"))
         for remove_folder in remove_temp:
-            shutil.rmtree(remove_folder)
+            shutil.rmtree(remove_folder, ignore_errors=True)
     else:
         pass
 

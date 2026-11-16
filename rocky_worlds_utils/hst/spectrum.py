@@ -32,6 +32,7 @@ __all__ = [
     "plot_lines_hsla",
     "coadd_first_order",
     "generate_spec_hlsp",
+    "mask"
 ]
 
 _KEY_LINE_IDS = [
@@ -45,6 +46,11 @@ _KEY_LINE_CENTERS = [
     [1294.5, 1206.5, 1393.8, 1402.7],
     [1175, 1548.1, 1550.8, 1401.1],
     [1238.8, 1242.8, 1371.3, 1145.6],
+]
+_GEOCORONA_LINE_CENTERS = [
+    1134.415,  # 1200.223, # N I Lines
+    1302.168, 1304.858, 1306.029,  # O I Lines
+    1215.6701  # H I line
 ]
 _C_SPEED = c.c.to(u.km / u.s).value
 
@@ -457,7 +463,6 @@ def generate_spec_hlsp(
     wavelength,
     flux,
     flux_uncertainty,
-    dq_flag,
     target_name,
     start_mjd,
     end_mjd,
@@ -479,6 +484,7 @@ def generate_spec_hlsp(
     fp_pos=None,
     output_dir="./",
     filename=None,
+    description="Observed spectrum",
     version="1.0",
 ):
     """
@@ -494,9 +500,6 @@ def generate_spec_hlsp(
 
     flux_uncertainty : ``numpy.ndarray``
         Flux uncertainty array in units of erg/s/cm^2/Angstrom.
-
-    dq_flag : ``numpy.ndarray``
-        Data quality flags array.
 
     target_name : ``str``
         Target name.
@@ -566,6 +569,10 @@ def generate_spec_hlsp(
     filename : ``str``, optional
         Output filename. If ``None``, then the output filename will be
         ``[dataset]_hslp.fits``. Default is ``None``.
+
+    description : ``str``, optional
+        Description of the data. If ``None``, then no description is "Observed
+        spectrum". Default is ``None``.
 
     version : ``str``, optional
         Version of this HLSP, must have a {major}.{minor} format and it must be
@@ -650,12 +657,11 @@ def generate_spec_hlsp(
                 format="D",
                 array=flux_uncertainty,
                 unit="erg/s/cm**2/Angstrom",
-            ),
-            fits.Column(name="DQ", format="D", array=dq_flag),
+            )
         ]
     )
 
-    hdu_1.header["DESCRIP"] = ("Observed spectrum", "Description of data")
+    hdu_1.header["DESCRIP"] = (description, "Description of data")
     hdu_1.header["SRC_DOI"] = (source_doi, "DOI for the source data taken from MAST")
     hdu_1.header["SIMULATD"] = (False, "Simulated-data flag")
     hdu_1.header["RA_TARG"] = (
@@ -701,10 +707,14 @@ def generate_spec_hlsp(
         hdu_list = [hdu_0, hdu_1]
 
     if filename is None:
+        if len(grating) > 5:
+            grating_str = 'multi'
+        else:
+            grating_str = grating.lower()
         filename = "hlsp_rocky-worlds_hst_{}_{}_{}_v{}_spec.fits".format(
             instrument.lower(),
             (target_name.lower()).replace("-", ""),
-            grating.lower(),
+            grating_str,
             version,
         )
     else:
@@ -712,3 +722,52 @@ def generate_spec_hlsp(
 
     hdul = fits.HDUList(hdu_list)
     hdul.writeto(output_dir + filename)
+
+
+# Mask geocoronal contamination and low-SNR spectral regions
+def mask(wavelength, flux, flux_error, mask_width=3.0):
+    """
+    Remove pixels that are contaminated by geocoronal emission and low
+    signal-to-noise regions from FUV spectra.
+
+    Parameters
+    ----------
+    wavelength : ``numpy.ndarray``
+        Array containing wavelengths in unit of Angstrom.
+
+    flux : ``numpy.ndarray``
+        Array containing fluxes in unit of erg/s/cm^2/Angstrom.
+
+    flux_error : ``numpy.ndarray``
+        Array containing flux uncertainties in erg/s/cm^2/Angstrom.
+
+    mask_width : ``float``, optional
+        Width of the mask for each geocoronal line in unit of Angstrom. Default
+        value is 3.0.
+
+    Returns
+    -------
+    wavelength_masked : ``numpy.ndarray``
+        Masked wavelength array.
+
+    flux_masked : ``numpy.ndarray``
+        Masked flux array.
+
+    flux_error_masked : ``numpy.ndarray``
+        Masked flux uncertainty array.
+    """
+    # Figure out the wavelength ranges to mask
+    n_masks = len(_GEOCORONA_LINE_CENTERS) - 1  # We will not mask Lya
+    wl_centers = _GEOCORONA_LINE_CENTERS[:n_masks]
+    wl_ranges = [(wk - mask_width / 2, wk + mask_width / 2) for wk in wl_centers]
+
+    # Identify where these ranges are in the wavelength array
+    mask = np.zeros(wavelength.shape, dtype=bool)
+    for low, high in wl_ranges:
+        mask |= (wavelength >= low) & (wavelength <= high)
+
+    # Apply masks
+    wavelength_masked = wavelength[~mask]
+    flux_masked = flux[~mask]
+    flux_error_masked = flux_error[~mask]
+    return wavelength_masked, flux_masked, flux_error_masked
